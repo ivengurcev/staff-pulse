@@ -78,23 +78,26 @@ TanStack Query хранит server state с `staleTime: 5000`. Ручная inva
 
 - TanStack Query владеет загруженными данными и состоянием запроса.
 - `OrgExplorer` владеет `expandedNodeIds`, `selectedNodeId`, `viewMode`, `sort` и `filterText`.
-- `OrgTree`/`OrgTreeNode` получают expansion state, `selectedNodeId` и callback через props.
-- `OrgTable` получает строки, `sort`, `selectedNodeId`, `filterText` и callbacks через props.
+- `OrgTree`/`OrgTreeNode` получают expansion state, `selectedNodeId`, `onToggle` и `onSelectNode` через props.
+- `OrgTable` получает строки, `sort`, `selectedNodeId`, `onSortAsc`/`onSortDesc` и `onSelectRow` через props; search находится в header `OrgExplorer`.
 - API-объекты не содержат UI-флагов.
 
-`selectedNodeId` изменяется только кликом по строке таблицы; при этом `getAncestorIds()` находит предков, которые добавляются в `expandedNodeIds`. Клик по узлу дерева сохраняет expand/collapse и не меняет `selectedNodeId`.
+Selection двусторонний: клик по строке таблицы устанавливает `selectedNodeId`, раскрывает предков через `getAncestorIds()` и задаёт `viewMode = 'tree'`; клик по содержимому узла дерева устанавливает `selectedNodeId` и задаёт `viewMode = 'table'`. Chevron — отдельная кнопка только для expand/collapse. Selection не сбрасывает filter/sort; выбранный видимый узел/строка прокручивается через `scrollIntoView({ block: 'nearest' })`.
 
 ## Responsive layout
 
 Ширина viewport в JavaScript не определяется. Видимость управляется CSS media query (`min-width: 1280px`) в styled-components:
 
-- `>= 1280px` — split-view: дерево слева (40%), таблица справа (60%); переключатель скрыт.
-- `< 1280px` — переключатель «Дерево» / «Таблица» управляет `viewMode`; CSS показывает только выбранную панель.
+- Header `position: sticky`, `top: 0`, непрозрачный фон; слева бренд, справа search; на `<1280` там же переключатель.
+- `>= 1280px` — split-view: sticky-дерево слева (330–360 px, собственный `overflow-y: auto`) и таблица на оставшемся пространстве; переключатель скрыт.
+- `< 1280px` — переключатель в header управляет `viewMode`; CSS показывает только выбранную панель.
 
-Обе панели остаются смонтированными.
+Обе панели остаются смонтированными. Desktop-высота header, gap и нижний viewport-gap задаются общими CSS custom properties, чтобы header и tree использовали один источник размеров.
 
 ## UI
 
 `OrgExplorer` различает initial loading, error, empty response и success. В success-state плоские данные преобразуются в индексы и агрегаты один раз на ссылку query data, после чего рендерятся дерево и таблица. Корневые Division раскрыты по умолчанию.
+
+Единственный search input находится в sticky-шапке и фильтрует только таблицу. Уровень узла отображается цветным маркером в дереве и цветным badge в таблице через единое presentation-сопоставление `orgTableFormat`.
 
 Все стили реализованы через styled-components. Realtime transport, incremental updates и keyboard navigation относятся к следующим этапам и здесь не описываются как реализованные.
