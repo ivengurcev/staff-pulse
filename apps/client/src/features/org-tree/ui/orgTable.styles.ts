@@ -1,55 +1,33 @@
 import styled from 'styled-components'
 
+import { levelColors, type OrgLevelTone } from './orgTableFormat.ts'
+
 export const TablePanel = styled.section`
     overflow: hidden;
     border: 1px solid #e4e7ec;
-    border-radius: 20px;
-    background: #ffffff;
-    box-shadow: 0 20px 50px rgb(15 23 42 / 8%);
-`
-
-export const TableHeader = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 20px 24px;
-    border-bottom: 1px solid #eaecf0;
-`
-
-export const TableTitle = styled.h2`
-    margin: 0;
-    color: #1d2939;
-    font-size: 1rem;
-`
-
-export const FilterInput = styled.input`
-    width: 220px;
-    padding: 8px 12px;
-    border: 1px solid #d0d5dd;
     border-radius: 10px;
-    color: #344054;
-    font: inherit;
-    font-size: 0.9rem;
-
-    &::placeholder {
-        color: #98a2b3;
-    }
-
-    &:focus-visible {
-        outline: 3px solid rgb(99 102 241 / 25%);
-        outline-offset: 1px;
-    }
+    background: #ffffff;
+    box-shadow: 0 4px 14px rgb(15 23 42 / 4%);
 `
 
 export const TableScroll = styled.div`
     overflow-x: auto;
+
+    @media (min-width: 1280px) {
+        overflow-x: hidden;
+    }
 `
 
 export const Table = styled.table`
     width: 100%;
+    min-width: 800px;
     border-collapse: collapse;
-    font-size: 0.9rem;
+    font-size: 0.78rem;
+
+    @media (min-width: 1280px) {
+        min-width: 0;
+        table-layout: fixed;
+    }
 `
 
 export const Th = styled.th`
@@ -57,20 +35,40 @@ export const Th = styled.th`
     text-align: left;
     background: #f9fafb;
     border-bottom: 1px solid #e4e7ec;
+
+    &:nth-child(1) {
+        width: 24%;
+    }
+
+    &:nth-child(2) {
+        width: 14%;
+    }
+
+    &:nth-child(3) {
+        width: 17%;
+    }
+
+    &:nth-child(4) {
+        width: 23%;
+    }
+
+    &:nth-child(5) {
+        width: 22%;
+    }
 `
 
 export const SortButton = styled.button<{ $numeric?: boolean }>`
     display: flex;
     width: 100%;
     align-items: center;
-    gap: 6px;
-    padding: 12px 16px;
+    gap: 4px;
+    padding: 10px;
     border: 0;
     background: transparent;
     color: #475467;
     cursor: pointer;
     font: inherit;
-    font-size: 0.85rem;
+    font-size: 0.72rem;
     font-weight: 700;
     justify-content: ${({ $numeric }) => ($numeric ? 'flex-end' : 'flex-start')};
 
@@ -84,17 +82,34 @@ export const SortButton = styled.button<{ $numeric?: boolean }>`
     }
 `
 
-export const SortDirection = styled.span`
+export const SortDirection = styled.span<{ $visible: boolean }>`
+    width: 0.8em;
+    flex: 0 0 0.8em;
     color: #4f46e5;
     font-weight: 800;
+    visibility: ${({ $visible }) => ($visible ? 'visible' : 'hidden')};
 `
 
 export const Td = styled.td<{ $numeric?: boolean }>`
-    padding: 12px 16px;
+    overflow: hidden;
+    padding: 9px 10px;
     color: #344054;
     border-bottom: 1px solid #f2f4f7;
+    text-overflow: ellipsis;
     text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
     ${({ $numeric }) => ($numeric ? 'font-variant-numeric: tabular-nums; white-space: nowrap;' : '')}
+`
+
+export const LevelBadge = styled.span<{ $tone: OrgLevelTone }>`
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: ${({ $tone }) => levelColors[$tone].background};
+    color: ${({ $tone }) => levelColors[$tone].foreground};
+    font-size: 0.68rem;
+    font-weight: 750;
+    white-space: nowrap;
 `
 
 export const TableRow = styled.tr<{ $selected: boolean }>`
@@ -108,22 +123,24 @@ export const TableRow = styled.tr<{ $selected: boolean }>`
 
 export const ToggleGroup = styled.div`
     display: inline-flex;
-    gap: 4px;
-    padding: 4px;
+    gap: 2px;
+    padding: 2px;
     border: 1px solid #e4e7ec;
-    border-radius: 12px;
+    border-radius: 8px;
     background: #f9fafb;
 `
 
 export const ToggleButton = styled.button<{ $active: boolean }>`
-    padding: 8px 16px;
+    padding: 3px 10px;
     border: 0;
-    border-radius: 9px;
+    border-radius: 6px;
     background: ${({ $active }) => ($active ? '#4f46e5' : 'transparent')};
     color: ${({ $active }) => ($active ? '#ffffff' : '#475467')};
     cursor: pointer;
     font: inherit;
+    font-size: 0.75rem;
     font-weight: 700;
+    line-height: 1;
 
     &:focus-visible {
         outline: 3px solid rgb(99 102 241 / 30%);
@@ -134,7 +151,7 @@ export const ToggleButton = styled.button<{ $active: boolean }>`
 export const Content = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 12px;
 
     @media (min-width: 1280px) {
         flex-direction: row;
@@ -143,6 +160,9 @@ export const Content = styled.div`
 `
 
 export const ToggleWrap = styled.div`
+    display: inline-flex;
+    flex: 0 0 auto;
+
     @media (min-width: 1280px) {
         display: none;
     }
@@ -150,8 +170,17 @@ export const ToggleWrap = styled.div`
 
 export const TreePane = styled.div<{ $view: 'tree' | 'table' }>`
     @media (min-width: 1280px) {
+        position: sticky;
+        top: calc(var(--app-header-height) + var(--sticky-gap));
         min-width: 0;
-        flex: 0 0 40%;
+        width: 350px;
+        max-height: calc(
+            100vh - var(--app-header-height) - var(--sticky-gap) -
+                var(--sticky-viewport-padding)
+        );
+        flex: 0 0 350px;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
     }
 
     @media (max-width: 1279.98px) {

@@ -18,19 +18,15 @@ import { ViewToggle } from './ViewToggle.tsx'
 import { useDebouncedValue } from './useDebouncedValue.ts'
 import { Content, TablePane, ToggleWrap, TreePane } from './orgTable.styles.ts'
 import {
-    Description,
-    Eyebrow,
+    Brand,
     Header,
+    HeaderSearch,
     Page,
     Panel,
-    PanelCaption,
-    PanelHeader,
-    PanelTitle,
     RetryButton,
     StateCard,
     StateContent,
     StateTitle,
-    Title,
 } from './orgTree.styles.ts'
 
 export function OrgExplorer() {
@@ -102,6 +98,7 @@ export function OrgExplorer() {
     const handleSelectRow = useCallback(
         (nodeId: string) => {
             setSelectedNodeId(nodeId)
+            setViewMode('tree')
             if (!index) {
                 return
             }
@@ -118,6 +115,11 @@ export function OrgExplorer() {
         [index, initialExpandedNodeIds],
     )
 
+    const handleSelectNode = useCallback((nodeId: string) => {
+        setSelectedNodeId(nodeId)
+        setViewMode('table')
+    }, [])
+
     const handleFilterChange = useCallback((text: string) => {
         setFilterText(text)
     }, [])
@@ -129,30 +131,29 @@ export function OrgExplorer() {
     return (
         <Page>
             <Header>
-                <Eyebrow>Staff Pulse</Eyebrow>
-                <Title>Структура компании</Title>
-                <Description>
-                    Интерактивная карта дивизионов, отделов и команд с актуальной
-                    численностью и показателями эффективности.
-                </Description>
+                <Brand>Staff Pulse</Brand>
+                <HeaderSearch
+                    type="search"
+                    value={filterText}
+                    placeholder="Поиск по подразделениям…"
+                    aria-label="Фильтр по названию подразделения"
+                    onChange={(event) => handleFilterChange(event.target.value)}
+                />
+                <ToggleWrap>
+                    <ViewToggle viewMode={viewMode} onChange={handleViewModeChange} />
+                </ToggleWrap>
             </Header>
 
             {query.data && query.data.length > 0 && index && sortedRows ? (
                 <Content>
-                    <ToggleWrap>
-                        <ViewToggle viewMode={viewMode} onChange={handleViewModeChange} />
-                    </ToggleWrap>
                     <TreePane $view={viewMode}>
-                        <Panel aria-labelledby="org-tree-title">
-                            <PanelHeader>
-                                <PanelTitle id="org-tree-title">Подразделения</PanelTitle>
-                                <PanelCaption>Дивизионы · отделы · команды</PanelCaption>
-                            </PanelHeader>
+                        <Panel aria-label="Подразделения">
                             <OrgTree
                                 index={index}
                                 expandedNodeIds={visibleExpandedNodeIds}
                                 selectedNodeId={selectedNodeId}
                                 onToggle={handleToggle}
+                                onSelectNode={handleSelectNode}
                             />
                         </Panel>
                     </TreePane>
@@ -161,21 +162,14 @@ export function OrgExplorer() {
                             rows={sortedRows}
                             sort={sort}
                             selectedNodeId={selectedNodeId}
-                            filterText={filterText}
                             onSortAsc={handleSortAsc}
                             onSortDesc={handleSortDesc}
                             onSelectRow={handleSelectRow}
-                            onFilterChange={handleFilterChange}
                         />
                     </TablePane>
                 </Content>
             ) : (
-                <Panel aria-labelledby="org-tree-title">
-                    <PanelHeader>
-                        <PanelTitle id="org-tree-title">Подразделения</PanelTitle>
-                        <PanelCaption>Дивизионы · отделы · команды</PanelCaption>
-                    </PanelHeader>
-
+                <Panel aria-label="Подразделения">
                     {query.data === undefined && query.isPending ? (
                         <StateCard role="status">
                             <StateContent>

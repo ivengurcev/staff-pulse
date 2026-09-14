@@ -4,7 +4,7 @@
 
 **Goal:** Добавить аналитическую таблицу с агрегированными показателями поверх существующего интерактивного дерева FOUNDATION: агрегаты `headcount`/`budget`, взвешенная `performance`, уровень узла, сортировка, realtime-фильтр по названию (debounce 250 мс), синхронизация выбора строки с деревом и форматирование бюджета.
 
-**Architecture:** Агрегаты и derived data считаются чистыми model-функциями и мемоизируются через `useMemo`. Индекс, агрегаты и базовые строки таблицы пересчитываются только при изменении `query.data`; filtered/sorted rows зависят дополнительно от debounced-фильтра и сортировки. Координирующий UI-state остаётся в `OrgExplorer`. Responsive представление: split-view (~40/60) при ширине `>= 1280 px`, переключатель при `< 1280 px`.
+**Architecture:** Агрегаты и derived data считаются чистыми model-функциями и мемоизируются через `useMemo`. Индекс, агрегаты и базовые строки таблицы пересчитываются только при изменении `query.data`; filtered/sorted rows зависят дополнительно от debounced-фильтра и сортировки. Координирующий UI-state остаётся в `OrgExplorer`. Header закреплён сверху страницы; при ширине `>= 1280 px` используется split-view со sticky tree-панелью шириной ориентировочно 330–360 px под header и таблицей на оставшемся пространстве; при `< 1280 px` используется переключатель.
 
 **Tech Stack:** без изменений — React 19, Vite 8, TypeScript 6, TanStack Query, Zod, styled-components, встроенный `node:test`. Новых dependencies нет.
 
@@ -18,6 +18,8 @@
 - Агрегаты считаются один раз на snapshot и мемоизируются; не пересчитывать через `useEffect`.
 - `buildOrgAggregates()` и `getAncestorIds()` — чистые model-функции, покрытые unit-тестами.
 - UI-state (`selectedNodeId`, `viewMode`, `sort`, `filterText`) принадлежит `OrgExplorer`; `expandedNodeIds` остаётся там же.
+- Selection двусторонний: строка таблицы выбирает узел дерева, содержимое узла дерева выбирает строку таблицы; chevron управляет только expand/collapse.
+- Selection не сбрасывает текущие filter/sort; для видимого выбранного узла или строки допускается `scrollIntoView({ block: 'nearest' })`.
 - Агрегаты считаются по полному snapshot; фильтр не влияет на их значения.
 - Не создавать commit или tag без отдельной команды пользователя.
 
@@ -32,20 +34,21 @@
 ### Client — UI
 
 - `apps/client/src/features/org-tree/ui/useDebouncedValue.ts` — локальный debounce hook.
-- `apps/client/src/features/org-tree/ui/orgTableFormat.ts` — `formatBudget()`, `formatPerformance()`, `LEVEL_LABELS`, `getLevelLabel()`.
-- `apps/client/src/features/org-tree/ui/OrgTable.tsx` — semantic table, заголовки сортировки, строки.
+- `apps/client/src/features/org-tree/ui/orgTableFormat.ts` — форматирование чисел и единое presentation-сопоставление уровня с подписью и цветом для дерева и таблицы.
+- `apps/client/src/features/org-tree/ui/OrgTable.tsx` — semantic table, заголовки сортировки, строки и прокрутка к выбранной видимой строке.
 - `apps/client/src/features/org-tree/ui/ViewToggle.tsx` — переключатель «Дерево» / «Таблица».
-- `apps/client/src/features/org-tree/ui/orgTable.styles.ts` — стили таблицы, фильтра и переключателя.
-- `apps/client/src/features/org-tree/ui/OrgExplorer.tsx` — модификация: владелец нового UI-state, композиция дерева/таблицы и responsive-логика.
-- `apps/client/src/features/org-tree/ui/OrgTree.tsx` — модификация: принимает `selectedNodeId`, передаёт вниз.
-- `apps/client/src/features/org-tree/ui/OrgTreeNode.tsx` — модификация: подсветка выбранного узла.
-- `apps/client/src/features/org-tree/ui/orgTree.styles.ts` — модификация: стиль выбранного узла.
+- `apps/client/src/features/org-tree/ui/orgTable.styles.ts` — стили таблицы и переключателя.
+- `apps/client/src/features/org-tree/ui/OrgExplorer.tsx` — владелец UI-state, header search, композиция дерева/таблицы и responsive-логика.
+- `apps/client/src/features/org-tree/ui/OrgTree.tsx` — принимает `selectedNodeId` и отдельный callback selection, передаёт вниз.
+- `apps/client/src/features/org-tree/ui/OrgTreeNode.tsx` — раздельные chevron/selection actions, подсветка и прокрутка к выбранному узлу.
+- `apps/client/src/features/org-tree/ui/orgTree.styles.ts` — компактные строки дерева, header search и стиль выбранного узла.
 
 ### Client — tests
 
 - `apps/client/tests/buildOrgAggregates.test.ts`
 - `apps/client/tests/getAncestorIds.test.ts`
 - `apps/client/tests/orgTable.test.ts`
+- `apps/client/tests/orgTableFormat.test.ts`
 
 ### Documentation (обновляется на этапе реализации)
 
@@ -149,11 +152,14 @@ export function sortOrgTableRows(
 export function formatBudget(value: number): string
 export function formatPerformance(value: number | null): string
 export function getLevelLabel(level: number): string
+export function getLevelTone(level: number): OrgLevelTone
 ```
 
 - `formatBudget` — `Intl.NumberFormat('ru-RU').format(value)` + ` руб.` → `12 345 678 руб.`.
 - `formatPerformance` — `null` → `—`; иначе `value.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })` + `%` → `82,9%`.
 - `getLevelLabel` — `['Дивизион', 'Отдел', 'Команда'][level]`; для уровня вне 0..2 возвращает `String(level)`.
+- `getLevelTone` — единое сопоставление глубины с presentation-tone: 0 = синий Division, 1 = фиолетовый Department, 2 = бирюзовый Team; неизвестный уровень получает нейтральный fallback. Палитра хранится рядом с сопоставлением и переиспользуется обоими view.
+- В дереве уровень показывается небольшим цветным маркером перед названием; в таблице — компактным цветным badge в колонке «Уровень». Уровень дерева передаётся рекурсивно от корня (`0`) и не выводится из `id` или `name`.
 
 ### Hooks
 
@@ -173,7 +179,7 @@ export function useDebouncedValue<T>(value: T, delayMs: number): T
 - `sort: SortState | null` (initial `null` = исходное состояние без сортировки, порядок API; не third state внутри колонки);
 - `filterText: string` (initial `''`).
 
-`OrgTree`/`OrgTreeNode` получают `expandedNodeIds`, `onToggle`, `selectedNodeId` через props. `OrgTable` получает строки, `sort`, `onSortAsc`, `onSortDesc`, `selectedNodeId`, `onSelectRow`, `filterText`, `onFilterChange` через props. Ни `OrgTreeNode`, ни `OrgTable` не хранят собственное состояние.
+`OrgTree`/`OrgTreeNode` получают `expandedNodeIds`, `onToggle`, `selectedNodeId`, `onSelectNode` через props. `OrgTable` получает строки, `sort`, `onSortAsc`, `onSortDesc`, `selectedNodeId`, `onSelectRow` через props. Header search в `OrgExplorer` получает `filterText` и `onFilterChange`. Ни `OrgTreeNode`, ни `OrgTable` не хранят собственного UI-state.
 
 Обработчики в `OrgExplorer`:
 
@@ -183,10 +189,11 @@ export function useDebouncedValue<T>(value: T, delayMs: number): T
 - `onSelectRow(nodeId)`:
   1. `setSelectedNodeId(nodeId)`;
   2. `getAncestorIds(nodeId, index)` → добавить предков в `expandedNodeIds` (новый `Set` из `current ?? initialExpandedNodeIds`);
-  3. `viewMode` не меняется (в том числе на `<1280`).
+  3. `setViewMode('tree')`, чтобы при `<1280` показать и прокрутить выбранный узел.
+- `onSelectNode(nodeId)` → `setSelectedNodeId(nodeId)` и `setViewMode('table')`, чтобы при `<1280` показать и прокрутить соответствующую строку; раскрытие, filter и sort не меняются.
 - `onFilterChange(text)` → `setFilterText(text)`.
 
-`selectedNodeId` меняется только через `onSelectRow` (клик по строке таблицы). Клик по узлу дерева (`onToggle`) сохраняет FOUNDATION-поведение expand/collapse и не меняет `selectedNodeId`. Обратной синхронизации tree → table на CORE нет.
+Chevron вызывает только `onToggle` и не меняет `selectedNodeId` или `viewMode`. Клик по остальному содержимому узла вызывает `onSelectNode` и не раскрывает/сворачивает ветвь. После смены selection выбранный видимый узел/строка прокручивается через `scrollIntoView({ block: 'nearest' })`; если строка исключена текущим фильтром, filter/sort не сбрасываются и прокрутка не выполняется. Обработчики задают целевой `viewMode` без определения ширины в JavaScript: на desktop обе панели всё равно показаны CSS, а на mobile/tablet это переключает видимое представление.
 
 ## Data Flow
 
@@ -219,12 +226,13 @@ render (OrgTree + OrgTable)
 
 Ширина viewport в JavaScript не определяется. Никакого `useMediaQuery`, `useSyncExternalStore` или resize-listener; отдельного state ширины нет.
 
-Визуальная раскладка управляется только CSS (styled-components) через media query `min-width: 1280px`:
+Визуальная раскладка управляется только CSS (styled-components) через media query `min-width: 1280px`. Фактическая desktop-высота header, gap между sticky-элементами и нижний viewport-gap задаются общими CSS custom properties на `Page`, чтобы header и tree использовали один источник размеров. У `Page` нет верхнего padding: начальные позиции header и tree сразу совпадают с их sticky offsets и элементы не смещаются в начале прокрутки.
 
-- `>= 1280px`: одновременно видны дерево и таблица, раскладка ~40/60; `viewMode` на desktop не скрывает панели; переключатель не отображается.
-- `< 1280px`: переключатель управляет `viewMode`; CSS показывает только выбранную панель (дерево или таблицу).
+- header: `position: sticky`, `top: 0`, непрозрачный background и `z-index` поверх page content;
+- `>= 1280px`: одновременно видны дерево и таблица; tree-панель имеет ширину ориентировочно 330–360 px, `position: sticky`, вычисляемый из высоты header и gap `top`, вычисляемый относительно viewport `max-height` и собственный `overflow-y: auto`; таблица занимает всё оставшееся пространство; `viewMode` не скрывает панели, переключатель не отображается.
+- `< 1280px`: переключатель находится внутри sticky-header и управляет `viewMode`; CSS показывает только выбранную панель (дерево или таблицу).
 
-Обе панели остаются смонтированными; видимость определяется CSS (например, через `display`/grid по media query). Клик строки таблицы НЕ переключает `viewMode`.
+Обе панели остаются смонтированными; видимость определяется CSS (например, через `display`/grid по media query). Клик строки таблицы задаёт `viewMode = 'tree'`, клик содержимого узла — `viewMode = 'table'`; на desktop это не скрывает панели, а при `<1280` обеспечивает переход к выбранному элементу противоположного view.
 
 ## Tasks
 
@@ -273,10 +281,11 @@ pnpm --filter @staff-pulse/client test
 
 - Create: `apps/client/src/features/org-tree/ui/useDebouncedValue.ts`
 - Create: `apps/client/src/features/org-tree/ui/orgTableFormat.ts`
+- Create: `apps/client/tests/orgTableFormat.test.ts`
 
 - [ ] **Step 1: Implement `useDebouncedValue`** — по контракту из раздела «Hooks».
 
-- [ ] **Step 2: Implement `formatBudget`, `formatPerformance`, `getLevelLabel`** — по контрактам из раздела «Presentation helpers».
+- [ ] **Step 2: Test and implement formatting and level presentation** — реализовать контракты из раздела «Presentation helpers»; проверить сопоставление уровней и уникальность цветов для Division/Department/Team.
 
 - [ ] **Step 3: Run type-check**
 
@@ -294,7 +303,7 @@ pnpm --filter @staff-pulse/client lint
 
 **Interfaces:**
 
-- Produces: `OrgTable({ rows, sort, selectedNodeId, onSortAsc, onSortDesc, onSelectRow, filterText, onFilterChange })`.
+- Produces: `OrgTable({ rows, sort, selectedNodeId, onSortAsc, onSortDesc, onSelectRow })`.
 - Produces: `ViewToggle({ viewMode, onChange })`.
 
 - [ ] **Step 1: Render semantic table**
@@ -305,17 +314,19 @@ pnpm --filter @staff-pulse/client lint
 
 Внутри каждого `<th>` — `button type="button"`; `onClick` → `onSortAsc(column)`, `onDoubleClick` → `onSortDesc(column)`. Не делать весь `<th>` clickable container. Отражать текущие `sort.column`/`direction` визуально.
 
+Каждый sortable header всегда резервирует фиксированный слот под `SortDirection`. Для неактивной колонки индикатор скрывается через `visibility: hidden`, поэтому появление `▲`/`▼` не меняет ширину содержимого или высоту table header.
+
 - [ ] **Step 3: Row selection**
 
-`<tr>` с `onClick={() => onSelectRow(row.nodeId)}`; выбранная строка (`row.nodeId === selectedNodeId`) получает выделение. Форматирование ячеек через `formatBudget`/`formatPerformance`/`getLevelLabel`.
+`<tr>` с `onClick={() => onSelectRow(row.nodeId)}`; выбранная строка (`row.nodeId === selectedNodeId`) получает выделение. Форматирование ячеек через `formatBudget`/`formatPerformance`/`getLevelLabel`; колонка уровня использует компактный badge из общего presentation-сопоставления.
 
-- [ ] **Step 4: Filter input**
+- [ ] **Step 4: Header filter input**
 
-Поле ввода над таблицей (в панели таблицы), value=`filterText`, `onChange` → `onFilterChange`.
+Единственное поле поиска находится в компактном header `OrgExplorer`, value=`filterText`, `onChange` → `onFilterChange`; отдельного поиска внутри таблицы или дерева нет.
 
 - [ ] **Step 5: ViewToggle and styles**
 
-`ViewToggle` с кнопками «Дерево»/«Таблица» и активным состоянием по `viewMode`. Все стили — styled-components; horizontal overflow для таблицы при `<1280`; обязательные колонки не скрывать.
+`ViewToggle` с кнопками «Дерево»/«Таблица» и активным состоянием по `viewMode` находится в header и виден только при `<1280`. Все стили — styled-components; horizontal overflow для таблицы при `<1280`; обязательные колонки не скрывать.
 
 ### Task 4: Wire `OrgExplorer` state and responsive layout
 
@@ -338,9 +349,9 @@ pnpm --filter @staff-pulse/client lint
 
 Разложить обе панели и переключатель по разделу «Responsive Behavior»; видимость управляется CSS media query (`min-width: 1280px`), без JS-определения ширины. Существующие состояния loading/error/empty/success сохраняются; таблица рендерится только в success.
 
-- [ ] **Step 4: Selection → tree highlight**
+- [ ] **Step 4: Bidirectional selection and scrolling**
 
-Передать `selectedNodeId` в `OrgTree`/`OrgTreeNode`; `OrgTreeNode` подсвечивает узел при `nodeId === selectedNodeId`. Обработчик `onSelectRow` раскрывает предков (без смены `viewMode`). Клик по узлу дерева не меняет `selectedNodeId`.
+Передать `selectedNodeId` и `onSelectNode` в `OrgTree`/`OrgTreeNode`; `OrgTreeNode` подсвечивает узел при `nodeId === selectedNodeId` и получает рекурсивную глубину для цветного level-маркера. Обработчик `onSelectRow` раскрывает предков и задаёт `viewMode = 'tree'`; клик по содержимому узла выбирает его и задаёт `viewMode = 'table'`, не меняя filter/sort. Chevron остаётся отдельной кнопкой только для expand/collapse и не меняет selection/view. Выбранный видимый узел/строка прокручивается через `scrollIntoView({ block: 'nearest' })`.
 
 - [ ] **Step 5: Run static checks**
 
@@ -372,12 +383,12 @@ pnpm build
 
 `pnpm dev`, затем:
 
-- split-view при `>= 1280 px` (дерево слева 40%, таблица справа 60%); переключатель при `< 1280 px` с одним представлением;
+- sticky header сразу расположен на `top: 0`, не смещается в начале прокрутки и непрозрачно перекрывает content; split-view при `>= 1280 px` использует sticky tree-панель ориентировочно 330–360 px непосредственно под header, а таблица занимает остаток; переключатель при `< 1280 px` находится в header и показывает одно представление;
 - агрегированные headcount/budget и взвешенная performance корректны (проверить на одном Department с известными Team);
-- уровень: Дивизион/Отдел/Команда;
+- уровень: Дивизион/Отдел/Команда, с отдельным согласованным цветом каждого уровня в дереве и таблице;
 - сортировка по каждому столбцу: обычный клик → ASC, двойной клик → DESC; `averagePerformance === null` внизу;
 - фильтр по названию realtime, debounce 250 мс, case-insensitive; пустая строка показывает все;
-- клик строки выделяет узел в дереве и раскрывает предков; на `<1280` вид не переключается;
+- клик строки выделяет узел, раскрывает предков, на `<1280` переключает view на дерево и при необходимости прокручивает sticky-панель; клик по содержимому узла выделяет строку, на `<1280` переключает view на таблицу и при необходимости прокручивает её; chevron только раскрывает/сворачивает; filter/sort не сбрасываются;
 - формат бюджета `12 345 678 руб.`; performance `82,9%` / `—`.
 
 - [ ] **Step 3: Scope checks**
@@ -400,13 +411,17 @@ rg -n 'style=|style:\s*\{' apps/client/src
 
 - [ ] Все требования CORE из `docs/steps/02-core.md` покрыты задачей и проверкой.
 - [ ] Агрегаты считаются чистой model-функцией post-order за O(n), включая взвешенную performance и `null` при нулевом headcount.
-- [ ] `level` не выводится из id/name; русские подписи уровня — presentation layer.
+- [ ] `level` не выводится из id/name; русские подписи и единое цветовое сопоставление уровня — presentation layer, одинаковый для обоих view.
 - [ ] `OrgExplorer` владеет `selectedNodeId`, `viewMode`, `sort`, `filterText`; `expandedNodeIds` остаётся там же.
-- [ ] Клик строки раскрывает предков через `getAncestorIds`, не переключая `viewMode` на `<1280`.
+- [ ] Selection двусторонний; клик строки раскрывает предков через `getAncestorIds`, клик содержимого дерева выбирает строку, chevron только раскрывает/сворачивает.
+- [ ] Выбранный видимый узел/строка прокручивается через `scrollIntoView({ block: 'nearest' })`; selection не сбрасывает filter/sort и на `<1280` переключает `viewMode` на противоположное представление.
+- [ ] Header sticky на `top: 0` и перекрывает content; tree sticky под ним, а `top`/`max-height` вычисляются из общих CSS custom properties без отдельного захардкоженного header offset.
+- [ ] Header и tree сразу находятся на своих sticky offsets без начального смещения; mobile/tablet view toggle расположен в header.
+- [ ] Фиксированный слот sort indicator сохраняет высоту table header при появлении `▲`/`▼`.
 - [ ] Фильтр применяется только к таблице; агрегаты не зависят от фильтра.
 - [ ] Сортировка: обычный клик → ASC, двойной → DESC; `averagePerformance === null` всегда внизу.
 - [ ] Derived data строится только по изменению `query.data` через `useMemo`; нет cache/selector layer.
-- [ ] `useEffect` только в debounce hook; ширина viewport в JS не определяется (CSS media query).
+- [ ] `useEffect` используется только в debounce hook и для прокрутки выбранных DOM-элементов; ширина viewport в JS не определяется (CSS media query).
 - [ ] Semantic table, budget `12 345 678 руб.`, performance `82,9%`/`—`.
 - [ ] Никаких новых dependencies и никакой функциональности следующих этапов.
 - [ ] Реализация начинается только после отдельной команды пользователя.

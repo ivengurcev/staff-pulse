@@ -1,15 +1,20 @@
+import { useEffect, useRef } from 'react'
+
 import type { OrgTableRow, SortColumn, SortState } from '../model/orgTable.ts'
-import { formatBudget, formatPerformance, getLevelLabel } from './orgTableFormat.ts'
 import {
-    FilterInput,
+    formatBudget,
+    formatPerformance,
+    getLevelLabel,
+    getLevelTone,
+} from './orgTableFormat.ts'
+import {
+    LevelBadge,
     SortButton,
     SortDirection,
     Table,
-    TableHeader,
     TablePanel,
     TableRow,
     TableScroll,
-    TableTitle,
     Td,
     Th,
 } from './orgTable.styles.ts'
@@ -32,35 +37,27 @@ type OrgTableProps = {
     rows: readonly OrgTableRow[]
     sort: SortState | null
     selectedNodeId: string | null
-    filterText: string
     onSortAsc: (column: SortColumn) => void
     onSortDesc: (column: SortColumn) => void
     onSelectRow: (nodeId: string) => void
-    onFilterChange: (text: string) => void
 }
 
 export function OrgTable({
     rows,
     sort,
     selectedNodeId,
-    filterText,
     onSortAsc,
     onSortDesc,
     onSelectRow,
-    onFilterChange,
 }: OrgTableProps) {
+    const selectedRowRef = useRef<HTMLTableRowElement>(null)
+
+    useEffect(() => {
+        selectedRowRef.current?.scrollIntoView({ block: 'nearest' })
+    }, [rows, selectedNodeId])
+
     return (
-        <TablePanel aria-labelledby="org-table-title">
-            <TableHeader>
-                <TableTitle id="org-table-title">Аналитическая таблица</TableTitle>
-                <FilterInput
-                    type="search"
-                    value={filterText}
-                    placeholder="Фильтр по названию…"
-                    aria-label="Фильтр по названию"
-                    onChange={(event) => onFilterChange(event.target.value)}
-                />
-            </TableHeader>
+        <TablePanel aria-label="Аналитическая таблица">
             <TableScroll>
                 <Table>
                     <thead>
@@ -87,11 +84,12 @@ export function OrgTable({
                                             onDoubleClick={() => onSortDesc(column.key)}
                                         >
                                             {column.label}
-                                            {direction ? (
-                                                <SortDirection>
-                                                    {direction === 'asc' ? '▲' : '▼'}
-                                                </SortDirection>
-                                            ) : null}
+                                            <SortDirection
+                                                $visible={direction !== null}
+                                                aria-hidden="true"
+                                            >
+                                                {direction === 'desc' ? '▼' : '▲'}
+                                            </SortDirection>
                                         </SortButton>
                                     </Th>
                                 )
@@ -102,11 +100,16 @@ export function OrgTable({
                         {rows.map((row) => (
                             <TableRow
                                 key={row.nodeId}
+                                ref={row.nodeId === selectedNodeId ? selectedRowRef : undefined}
                                 $selected={row.nodeId === selectedNodeId}
                                 onClick={() => onSelectRow(row.nodeId)}
                             >
                                 <Td>{row.name}</Td>
-                                <Td>{getLevelLabel(row.level)}</Td>
+                                <Td>
+                                    <LevelBadge $tone={getLevelTone(row.level)}>
+                                        {getLevelLabel(row.level)}
+                                    </LevelBadge>
+                                </Td>
                                 <Td $numeric>{row.totalHeadcount}</Td>
                                 <Td $numeric>{formatBudget(row.totalBudget)}</Td>
                                 <Td $numeric>{formatPerformance(row.averagePerformance)}</Td>

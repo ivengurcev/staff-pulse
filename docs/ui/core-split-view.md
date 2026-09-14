@@ -1,6 +1,6 @@
 # CORE UI refinement — split-view
 
-Визуальный референс: `docs/ui/core-split-view.png`.
+Визуальный референс: `docs/ui/design.png`.
 
 Цель: привести текущий `step/2 — CORE` к плотному B2B dashboard без hero-блока.
 
@@ -8,7 +8,7 @@
 
 Desktop:
 
-- компактная шапка;
+- компактная sticky-шапка без начального смещения;
 - слева `STAFF PULSE`;
 - справа один общий search input;
 - ниже split-view:
@@ -41,6 +41,7 @@ Desktop:
 - плотные строки;
 - search внутри таблицы убрать;
 - сортировка: click → ASC, double click → DESC;
+- появление индикатора сортировки не меняет высоту шапки таблицы;
 - на обычном desktop не должно быть горизонтального скролла.
 
 ## Search
@@ -70,6 +71,7 @@ Tree → table:
 
 - desktop — split-view;
 - существующее mobile-поведение не ломать;
+- при `<1280px` переключатель «Дерево / Таблица» находится в sticky-шапке;
 - без JS viewport detection.
 
 ## Не менять без необходимости
