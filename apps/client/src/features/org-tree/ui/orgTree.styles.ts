@@ -153,16 +153,17 @@ export const NodeButton = styled.button`
     }
 `
 
-export const NodeRow = styled.span`
+export const NodeRow = styled.span<{ $selected?: boolean }>`
     display: flex;
     min-height: 58px;
     align-items: center;
     gap: 12px;
     padding: 10px 24px;
     border-bottom: 1px solid #f2f4f7;
+    background: ${({ $selected }) => ($selected ? '#eef2ff' : 'transparent')};
 
     ${NodeButton}:hover & {
-        background: #f9fafb;
+        background: ${({ $selected }) => ($selected ? '#eef2ff' : '#f9fafb')};
     }
 `
 

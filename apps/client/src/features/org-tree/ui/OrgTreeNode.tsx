@@ -18,6 +18,7 @@ type OrgTreeNodeProps = {
     nodeId: string
     index: OrgTreeIndex
     expandedNodeIds: ReadonlySet<string>
+    selectedNodeId: string | null
     onToggle: (nodeId: string) => void
 }
 
@@ -25,6 +26,7 @@ export function OrgTreeNode({
     nodeId,
     index,
     expandedNodeIds,
+    selectedNodeId,
     onToggle,
 }: OrgTreeNodeProps) {
     const node = index.nodesById.get(nodeId)
@@ -36,6 +38,7 @@ export function OrgTreeNode({
     const childIds = index.childrenByParentId.get(nodeId) ?? []
     const hasChildren = childIds.length > 0
     const isExpanded = expandedNodeIds.has(nodeId)
+    const isSelected = nodeId === selectedNodeId
     const performanceLevel: PerformanceLevel =
         node.performance >= 80 ? 'high' : node.performance >= 60 ? 'medium' : 'low'
     const performanceLabel =
@@ -64,13 +67,13 @@ export function OrgTreeNode({
                     aria-expanded={isExpanded}
                     onClick={() => onToggle(nodeId)}
                 >
-                    <NodeRow>
+                    <NodeRow $selected={isSelected}>
                         <Chevron aria-hidden="true">{isExpanded ? '⌄' : '›'}</Chevron>
                         {content}
                     </NodeRow>
                 </NodeButton>
             ) : (
-                <LeafRow>{content}</LeafRow>
+                <LeafRow $selected={isSelected}>{content}</LeafRow>
             )}
 
             {hasChildren && isExpanded ? (
@@ -81,6 +84,7 @@ export function OrgTreeNode({
                             nodeId={childId}
                             index={index}
                             expandedNodeIds={expandedNodeIds}
+                            selectedNodeId={selectedNodeId}
                             onToggle={onToggle}
                         />
                     ))}
