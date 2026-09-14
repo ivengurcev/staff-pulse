@@ -1,5 +1,6 @@
 import styled from 'styled-components'
 
+import type { ConnectionStatus } from '../realtime/connectionStatus.ts'
 import { levelColors, type OrgLevelTone } from './orgTableFormat.ts'
 
 export type PerformanceLevel = 'high' | 'medium' | 'low'
@@ -278,4 +279,49 @@ export const MobileLabel = styled.span`
 
 export const TreeRegion = styled.div`
     overflow-x: auto;
+`
+
+const connectionDotColors: Record<ConnectionStatus, string> = {
+    connecting: '#f59e0b',
+    online: '#12b76a',
+    reconnecting: '#f59e0b',
+    offline: '#d92d20',
+}
+
+export const ConnectionBox = styled.div`
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f9fafb;
+    color: #475467;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+`
+
+export const ConnectionDot = styled.span<{ $status: ConnectionStatus }>`
+    width: 8px;
+    height: 8px;
+    flex: 0 0 8px;
+    border-radius: 50%;
+    background: ${({ $status }) => connectionDotColors[$status]};
+`
+
+export const ConnectionText = styled.span``
+
+export const Collapsible = styled.div<{ $expanded: boolean }>`
+    display: grid;
+    grid-template-rows: ${({ $expanded }) => ($expanded ? '1fr' : '0fr')};
+    transition: grid-template-rows 0.25s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+`
+
+export const CollapsibleInner = styled.div`
+    overflow: hidden;
+    min-height: 0;
 `

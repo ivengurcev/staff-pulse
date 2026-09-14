@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 
 import { useOrgTreeQuery } from '../api/useOrgTreeQuery.ts'
+import { useOrgRealtime } from '../realtime/useOrgRealtime.ts'
 import { getAncestorIds } from '../model/getAncestorIds.ts'
 import { getInitialExpandedNodeIds } from '../model/getInitialExpandedNodeIds.ts'
 import {
@@ -10,6 +11,7 @@ import {
     type SortColumn,
     type SortState,
 } from '../model/orgTable.ts'
+import { ConnectionIndicator } from './ConnectionIndicator.tsx'
 import { OrgTable } from './OrgTable.tsx'
 import { OrgTree } from './OrgTree.tsx'
 import { ViewToggle } from './ViewToggle.tsx'
@@ -29,6 +31,7 @@ import {
 
 export function OrgExplorer() {
     const query = useOrgTreeQuery()
+    const status = useOrgRealtime()
     const [expandedNodeIds, setExpandedNodeIds] = useState<ReadonlySet<string> | null>(
         null,
     )
@@ -124,6 +127,7 @@ export function OrgExplorer() {
         <Page>
             <Header>
                 <Brand>Staff Pulse</Brand>
+                <ConnectionIndicator status={status} />
                 <HeaderSearch
                     type="search"
                     value={filterText}

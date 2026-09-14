@@ -1,4 +1,4 @@
-import styled from 'styled-components'
+import styled, { keyframes } from 'styled-components'
 
 import { levelColors, type OrgLevelTone } from './orgTableFormat.ts'
 
@@ -90,7 +90,16 @@ export const SortDirection = styled.span<{ $visible: boolean }>`
     visibility: ${({ $visible }) => ($visible ? 'visible' : 'hidden')};
 `
 
-export const Td = styled.td<{ $numeric?: boolean }>`
+const highlightFade = keyframes`
+    from {
+        background-color: #dbeafe;
+    }
+    to {
+        background-color: transparent;
+    }
+`
+
+export const Td = styled.td<{ $numeric?: boolean; $highlight?: boolean }>`
     overflow: hidden;
     padding: 9px 10px;
     color: #344054;
@@ -98,6 +107,7 @@ export const Td = styled.td<{ $numeric?: boolean }>`
     text-overflow: ellipsis;
     text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
     ${({ $numeric }) => ($numeric ? 'font-variant-numeric: tabular-nums; white-space: nowrap;' : '')}
+    ${({ $highlight }) => ($highlight ? `animation: ${highlightFade} 1.5s ease-out;` : '')}
 `
 
 export const LevelBadge = styled.span<{ $tone: OrgLevelTone }>`
@@ -112,7 +122,7 @@ export const LevelBadge = styled.span<{ $tone: OrgLevelTone }>`
     white-space: nowrap;
 `
 
-export const TableRow = styled.tr<{ $selected: boolean }>`
+export const TableRow = styled.tr<{ $selected: boolean; $active?: boolean }>`
     cursor: pointer;
     scroll-margin-block:
         calc(var(--app-header-height) + var(--sticky-gap) + 8px)
@@ -122,6 +132,14 @@ export const TableRow = styled.tr<{ $selected: boolean }>`
     &:hover {
         background: ${({ $selected }) => ($selected ? '#eef2ff' : '#f9fafb')};
     }
+
+    &:focus-visible {
+        outline: 3px solid rgb(99 102 241 / 40%);
+        outline-offset: -3px;
+    }
+
+    ${({ $active }) =>
+        $active ? 'outline: 2px solid #4f46e5; outline-offset: -2px;' : ''}
 `
 
 export const ToggleGroup = styled.div`

@@ -6,6 +6,8 @@ import {
     Chevron,
     ChevronButton,
     ChevronSpacer,
+    Collapsible,
+    CollapsibleInner,
     Headcount,
     LevelMarker,
     MobileLabel,
@@ -101,21 +103,29 @@ export function OrgTreeNode({
                 </NodeSelectButton>
             </NodeRow>
 
-            {hasChildren && isExpanded ? (
-                <TreeList>
-                    {childIds.map((childId) => (
-                        <OrgTreeNode
-                            key={childId}
-                            nodeId={childId}
-                            level={level + 1}
-                            index={index}
-                            expandedNodeIds={expandedNodeIds}
-                            selectedNodeId={selectedNodeId}
-                            onToggle={onToggle}
-                            onSelectNode={onSelectNode}
-                        />
-                    ))}
-                </TreeList>
+            {hasChildren ? (
+                <Collapsible
+                    $expanded={isExpanded}
+                    inert={!isExpanded}
+                    aria-hidden={!isExpanded ? true : undefined}
+                >
+                    <CollapsibleInner>
+                        <TreeList>
+                            {childIds.map((childId) => (
+                                <OrgTreeNode
+                                    key={childId}
+                                    nodeId={childId}
+                                    level={level + 1}
+                                    index={index}
+                                    expandedNodeIds={expandedNodeIds}
+                                    selectedNodeId={selectedNodeId}
+                                    onToggle={onToggle}
+                                    onSelectNode={onSelectNode}
+                                />
+                            ))}
+                        </TreeList>
+                    </CollapsibleInner>
+                </Collapsible>
             ) : null}
         </TreeItem>
     )
