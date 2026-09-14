@@ -114,6 +114,9 @@ export const LevelBadge = styled.span<{ $tone: OrgLevelTone }>`
 
 export const TableRow = styled.tr<{ $selected: boolean }>`
     cursor: pointer;
+    scroll-margin-block:
+        calc(var(--app-header-height) + var(--sticky-gap) + 8px)
+        12px;
     background: ${({ $selected }) => ($selected ? '#eef2ff' : 'transparent')};
 
     &:hover {

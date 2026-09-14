@@ -53,8 +53,11 @@ export function OrgTable({
     const selectedRowRef = useRef<HTMLTableRowElement>(null)
 
     useEffect(() => {
-        selectedRowRef.current?.scrollIntoView({ block: 'nearest' })
-    }, [rows, selectedNodeId])
+        selectedRowRef.current?.scrollIntoView({ 
+            block: 'nearest',
+            behavior: 'smooth' 
+        })
+    }, [selectedNodeId])
 
     return (
         <TablePanel aria-label="Аналитическая таблица">
