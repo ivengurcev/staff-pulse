@@ -76,7 +76,7 @@ Vite используется как готовый frontend toolchain:
 
 ## Абсолютные импорты
 
-Выбран alias:
+Для client выбран alias Vite/TypeScript:
 
 ```text
 @ → ./src
@@ -88,7 +88,34 @@ Vite используется как готовый frontend toolchain:
 import App from '@/App.tsx'
 ```
 
-Alias настроен в TypeScript и Vite.
+Для server выбран нативный механизм Node.js package imports:
+
+```text
+#server/* → внутренние модули server
+```
+
+В `apps/server/package.json` используется условное сопоставление:
+
+```json
+"imports": {
+    "#server/*": {
+        "development": "./src/*.ts",
+        "default": "./dist/*.js"
+    }
+}
+```
+
+Development запускается с условием `development`, а собранное приложение использует `default`:
+
+```text
+dev:   tsx --conditions=development watch src/index.ts
+build: tsc -p tsconfig.json
+start: node dist/index.js
+```
+
+Различие выбрано сознательно: client использует alias своего toolchain, server — нативный механизм Node.js. Префикс `#server/*` не зависит от относительно новой поддержки specifier-имён вида `#/`.
+
+Server сохраняет обычную сборку через `tsc`. Post-processing alias-импортов и дополнительный bundler не используются.
 
 `baseUrl` не используется, поскольку в TypeScript 6 он deprecated.
 
@@ -147,6 +174,18 @@ TypeScript не проверяет данные, пришедшие из сет�
 - request deduplication;
 - AbortSignal;
 - удобное обновление server state в следующих этапах.
+
+На FOUNDATION:
+
+- `staleTime` равен 5000 мс;
+- ручная cache invalidation не выполняется;
+- для эквивалентных JSON-ответов используется default structural sharing TanStack Query.
+
+## Test runner
+
+Для FOUNDATION используется встроенный `node:test` из Node.js 24.19.
+
+Отдельную test-runner dependency, например Vitest или Jest, не добавлять.
 
 ## Стили
 
