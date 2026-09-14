@@ -199,7 +199,7 @@ TypeScript не проверяет данные, пришедшие из сет�
 
 ## Realtime
 
-Предварительный выбор для step/3:
+Для step/3 выбран:
 
 ```text
 SSE
@@ -208,10 +208,10 @@ SSE
 Причина:
 
 - поток изменений нужен в основном server → client;
-- двусторонний канал WebSocket пока не требуется;
+- двусторонний канал WebSocket не требуется;
 - проще контракт и reconnect.
 
-Это решение ещё не реализовано и может быть пересмотрено перед step/3.
+Детали транспорта, event-контракта и reconnect — в разделе «POLISH (step/3)».
 
 ## CORE (step/2)
 
@@ -345,4 +345,89 @@ Debounce реализуется локальным `useDebouncedValue(value, 250
 - На обычном desktop таблица не имеет горизонтального скролла; на `<1280` допускается horizontal overflow, обязательные колонки не скрываются.
 - В split-view таблица занимает всё оставшееся после sticky-дерева пространство.
 - Заголовок сортировки — semantic `<th>` с интерактивной кнопкой внутри; весь `<th>` в произвольный clickable container не превращать. Индикатор сортировки резервирует фиксированный слот (`visibility: hidden`), чтобы его появление не меняло высоту шапки таблицы.
-- Keyboard navigation не добавляется — это step/3 POLISH.
+- Keyboard navigation не добавляется на CORE — это step/3 POLISH.
+
+## POLISH (step/3)
+
+Решения по realtime-обновлениям и UX. Архитектура утверждена до начала реализации step/3.
+
+### Realtime transport
+
+- Транспорт — SSE.
+- Endpoint: `GET /api/org-tree/events`.
+- Сервер хранит один общий mutable org state в памяти; `GET /api/org-tree` и SSE читают одно и то же состояние.
+- Один общий server timer на весь процесс; каждые 3 секунды меняется один существующий узел.
+- Изменения детерминированные, по кругу, без `Math.random()`.
+- На каждом tick меняется ровно одна метрика по циклу `headcount → budget → performance → …`; `updatedAt` обновляется всегда.
+- `id`/`name`/`parentId` в realtime не меняются.
+
+### SSE event contract
+
+```ts
+{
+    type: 'node.updated',
+    node: OrgNode
+}
+```
+
+Отправляется полное новое состояние одного `OrgNode`, а не partial fields. На клиенте событие проходит runtime validation.
+
+### Client cache
+
+TanStack Query остаётся единственным источником server state. В query cache вместо `OrgNode[]` используется:
+
+```ts
+type OrgSnapshot = {
+    nodes: readonly OrgNode[]
+    index: OrgTreeIndex
+    aggregates: ReadonlyMap<string, OrgAggregate>
+}
+```
+
+Initial GET / resync полностью валидирует nodes, строит index и aggregates за `O(n)`. Realtime patch через `queryClient.setQueryData()` заменяет только один `OrgNode`; index сохраняется, потому что структура дерева realtime не меняется; aggregates обновляются частично.
+
+### Incremental aggregates
+
+Внутренний aggregate расширяется данными, достаточными для delta update: `totalHeadcount`, `totalBudget`, `weightedPerformanceSum`, `averagePerformance`.
+
+Для изменённого узла считаются delta: `headcount`, `budget`, `weightedPerformanceSum = performance * headcount`. Delta применяется только к цепочке `updated node → parent → … → root`.
+
+Обычный realtime update — `O(depth)`, не `O(n)`. Полный `buildOrgAggregates()` используется только initial load / resync.
+
+### Versioning / race protection
+
+`updatedAt` используется как версия узла. Stale/duplicate patch не должен затирать более новый node. После reconnect выполняется один full `GET /api/org-tree` для resync; полный snapshot и агрегаты перестраиваются один раз; затем снова используются только SSE patches.
+
+### Reconnect
+
+Не полагаться на встроенную стратегию EventSource. На error: закрыть EventSource, reconnect вручную с exponential backoff `1s → 2s → 4s → 8s → 16s → max 30s`. После успешного `open` backoff сбрасывается. После reconnect — один full refetch/resync. При unmount — закрыть EventSource и очистить reconnect timer.
+
+### Connection status
+
+Статусы: `connecting`, `online`, `reconnecting`, `offline`. В header показывается точка + текст: «Подключение…», «Онлайн», «Переподключение…», «Офлайн». Текст обязателен, цвет только дополнительный сигнал. На мобильном индикатор не скрывается.
+
+### Updated cells
+
+После patch подсвечиваются только числовые ячейки, отображаемое значение которых реально изменилось: `totalHeadcount`, `totalBudget`, `averagePerformance`. Если обновилась Team, могут подсветиться Team, Department и Division. Fade-out ~1.5 секунды. `name`/`level` не подсвечиваются. Отдельную realtime-подсветку дерева не добавлять.
+
+### Keyboard navigation
+
+Навигация по видимым строкам таблицы: `ArrowUp` / `ArrowDown`, `Home` / `End`, `Enter` = то же действие, что click row. Работает после filter/sort. Фокус визуально видим. Не превращать таблицу в spreadsheet/grid navigation по отдельным ячейкам.
+
+### Tree animation
+
+Не добавлять animation library и не измерять `scrollHeight` через JS. Использовать CSS wrapper с переходом `grid-template-rows: 0fr → 1fr` и `overflow: hidden`. При `prefers-reduced-motion: reduce` transition полностью отключается.
+
+### Boundaries
+
+Server: store/state отдельно от SSE transport; timer/update logic отдельно; REST и SSE используют один store.
+
+Client: realtime/EventSource/backoff/status отдельно от UI; runtime validation отдельно; чистые model-функции для create snapshot / apply patch; `OrgExplorer` не разбирает SSE сам.
+
+Новых библиотек для realtime, animation или keyboard navigation не добавлять.
+
+### Tests
+
+Сохранить текущий test stack. Автоматически покрыть: deterministic server update; SSE/REST contract где практично; snapshot creation; incremental aggregate update; weighted performance delta; update только node + ancestors; stale/duplicate `updatedAt`; untouched aggregates remain unchanged.
+
+Manual review: realtime update ~3 сек; нет full refetch при обычном realtime; один resync после reconnect; connection indicator; exponential backoff; cell fade; keyboard navigation; tree animation; `prefers-reduced-motion`.
