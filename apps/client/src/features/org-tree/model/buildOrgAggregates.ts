@@ -6,6 +6,7 @@ export type OrgAggregate = {
     level: number
     totalHeadcount: number
     totalBudget: number
+    weightedPerformanceSum: number
     averagePerformance: number | null
 }
 
@@ -39,15 +40,14 @@ export function buildOrgAggregates(
             weightedPerformanceSum += child.weightedPerformanceSum
         }
 
-        const averagePerformance =
-            totalHeadcount === 0 ? null : weightedPerformanceSum / totalHeadcount
-
         aggregates.set(nodeId, {
             nodeId,
             level,
             totalHeadcount,
             totalBudget,
-            averagePerformance,
+            weightedPerformanceSum,
+            averagePerformance:
+                totalHeadcount === 0 ? null : weightedPerformanceSum / totalHeadcount,
         })
 
         return { totalHeadcount, totalBudget, weightedPerformanceSum }

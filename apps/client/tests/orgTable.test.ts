@@ -31,7 +31,14 @@ function aggregate(
     totalBudget: number,
     averagePerformance: number | null,
 ): OrgAggregate {
-    return { nodeId, level, totalHeadcount, totalBudget, averagePerformance }
+    return {
+        nodeId,
+        level,
+        totalHeadcount,
+        totalBudget,
+        weightedPerformanceSum: 0,
+        averagePerformance,
+    }
 }
 
 function row(nodeId: string, overrides: Partial<OrgTableRow> = {}): OrgTableRow {

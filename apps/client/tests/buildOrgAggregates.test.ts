@@ -35,6 +35,7 @@ describe('buildOrgAggregates', () => {
             level: 0,
             totalHeadcount: 4,
             totalBudget: 250,
+            weightedPerformanceSum: 240,
             averagePerformance: 60,
         })
     })
@@ -53,6 +54,7 @@ describe('buildOrgAggregates', () => {
             level: 2,
             totalHeadcount: 20,
             totalBudget: 300,
+            weightedPerformanceSum: 1200,
             averagePerformance: 60,
         })
         assert.deepEqual(aggregates.get('department'), {
@@ -60,6 +62,7 @@ describe('buildOrgAggregates', () => {
             level: 1,
             totalHeadcount: 30,
             totalBudget: 500,
+            weightedPerformanceSum: 1500,
             averagePerformance: 50,
         })
         assert.deepEqual(aggregates.get('division'), {
@@ -67,6 +70,7 @@ describe('buildOrgAggregates', () => {
             level: 0,
             totalHeadcount: 40,
             totalBudget: 600,
+            weightedPerformanceSum: 2400,
             averagePerformance: 60,
         })
     })
