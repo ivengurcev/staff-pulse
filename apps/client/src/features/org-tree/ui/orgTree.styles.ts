@@ -153,7 +153,7 @@ export const NodeButton = styled.button`
     }
 `
 
-export const NodeRow = styled.div`
+export const NodeRow = styled.span`
     display: flex;
     min-height: 58px;
     align-items: center;
@@ -177,6 +177,7 @@ export const Chevron = styled.span`
     place-items: center;
     color: #667085;
     font-size: 1.1rem;
+    font-weight: 700;
 `
 
 export const NodeName = styled.span`
@@ -218,9 +219,6 @@ export const PerformanceDot = styled.span`
 `
 
 export const MobileLabel = styled.span`
-    @media (max-width: 640px) {
-        display: none;
-    }
 `
 
 export const TreeRegion = styled.div`
