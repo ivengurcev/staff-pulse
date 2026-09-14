@@ -8,7 +8,7 @@
 
 **Tech Stack:** без изменений — Node.js 24.19, pnpm 12.4.1, TypeScript 6, Hono, React 19, Vite 8, TanStack Query, Zod, styled-components, встроенный `node:test`. Новых библиотек нет (SSE — нативный EventSource, анимация — CSS, keyboard navigation — вручную).
 
-**Spec:** `docs/task.md` (03 POLISH), `docs/steps.md` (step/3), `docs/decisions.md` (POLISH), `docs/clarifications.md`.
+**Spec:** `docs/task.md` (03 POLISH), `docs/steps/03-polish.md`, `docs/decisions.md` (POLISH), `docs/clarifications.md`.
 
 ## Global Constraints
 
@@ -234,12 +234,14 @@ realtime
 - Create: `apps/client/src/features/org-tree/model/orgEvents.ts`
 - Create: `apps/client/src/features/org-tree/model/applyOrgNodePatch.ts`
 - Modify: `apps/client/src/features/org-tree/model/buildOrgAggregates.ts`
+- Modify: `apps/client/src/features/org-tree/api/fetchOrgTree.ts`
+- Modify: `apps/client/src/features/org-tree/api/useOrgTreeQuery.ts`
 - Create: `apps/client/tests/orgSnapshot.test.ts`
 - Create: `apps/client/tests/applyOrgNodePatch.test.ts`
 - Create: `apps/client/tests/orgEvents.test.ts`
 
 - [ ] **Step 1:** Написать failing-тесты: snapshot creation; weighted performance delta; update только node + ancestors; stale/duplicate `updatedAt`; untouched aggregates remain unchanged; resync merge (старый fetched snapshot не откатывает более новый SSE node в cache).
-- [ ] **Step 2:** Реализовать `createOrgSnapshot`, расширенный aggregate, `applyOrgNodePatch`, Zod-схему события и `parseOrgEvent`.
+- [ ] **Step 2:** Реализовать `createOrgSnapshot()`, `mergeOrgNodes()`, миграцию `queryFn` в `useOrgTreeQuery` на `OrgSnapshot`, расширенный aggregate (`weightedPerformanceSum`), `applyOrgNodePatch()`, Zod-схему события и `parseOrgEvent()`.
 - [ ] **Step 3:** Запустить client tests.
 
 ### Task 4: Client realtime hook (EventSource, backoff, status)
