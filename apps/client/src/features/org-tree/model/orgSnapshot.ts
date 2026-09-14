@@ -23,9 +23,33 @@ export function mergeOrgNodes(
         currentById.set(node.id, node)
     }
 
+    const fetchedById = new Map<string, OrgNode>()
+    for (const node of fetched) {
+        fetchedById.set(node.id, node)
+    }
+
+    if (currentById.size !== fetchedById.size) {
+        throw new Error(
+            'Resync merge failed: current and fetched have different node sets',
+        )
+    }
+
+    for (const [id, existing] of currentById) {
+        const fetchedNode = fetchedById.get(id)
+        if (!fetchedNode) {
+            throw new Error(`Resync merge failed: node ${id} is missing in fetched`)
+        }
+        if (
+            existing.name !== fetchedNode.name ||
+            existing.parentId !== fetchedNode.parentId
+        ) {
+            throw new Error(`Resync merge failed: topology changed for node ${id}`)
+        }
+    }
+
     return fetched.map((node) => {
         const existing = currentById.get(node.id)
-        if (existing && existing.updatedAt > node.updatedAt) {
+        if (existing && existing.updatedAt >= node.updatedAt) {
             return existing
         }
         return node

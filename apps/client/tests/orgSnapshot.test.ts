@@ -87,4 +87,41 @@ describe('mergeOrgNodes', () => {
 
         assert.deepEqual(merged.map((n) => n.id), ['b', 'a'])
     })
+
+    it('throws when a current node id is missing in fetched', () => {
+        const current = [node('a', null), node('b', null), node('c', null)]
+        const fetched = [node('a', null), node('b', null)]
+
+        assert.throws(() => mergeOrgNodes(current, fetched))
+    })
+
+    it('throws when fetched has an extra node id', () => {
+        const current = [node('a', null), node('b', null)]
+        const fetched = [node('a', null), node('b', null), node('c', null)]
+
+        assert.throws(() => mergeOrgNodes(current, fetched))
+    })
+
+    it('throws when parentId changed', () => {
+        const current = [node('a', null)]
+        const fetched = [node('a', 'other')]
+
+        assert.throws(() => mergeOrgNodes(current, fetched))
+    })
+
+    it('throws when name changed', () => {
+        const current = [node('a', null)]
+        const fetched = [node('a', null, { name: 'changed' })]
+
+        assert.throws(() => mergeOrgNodes(current, fetched))
+    })
+
+    it('prefers current on duplicate updatedAt', () => {
+        const current = [node('a', null, { headcount: 11 })]
+        const fetched = [node('a', null, { headcount: 10 })]
+
+        const merged = mergeOrgNodes(current, fetched)
+
+        assert.equal(merged[0]?.headcount, 11)
+    })
 })

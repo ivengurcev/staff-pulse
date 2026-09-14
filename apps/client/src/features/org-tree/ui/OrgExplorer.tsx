@@ -1,8 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 
 import { useOrgTreeQuery } from '../api/useOrgTreeQuery.ts'
-import { buildOrgAggregates } from '../model/buildOrgAggregates.ts'
-import { buildOrgTreeIndex } from '../model/buildOrgTreeIndex.ts'
 import { getAncestorIds } from '../model/getAncestorIds.ts'
 import { getInitialExpandedNodeIds } from '../model/getInitialExpandedNodeIds.ts'
 import {
@@ -39,18 +37,12 @@ export function OrgExplorer() {
     const [sort, setSort] = useState<SortState | null>(null)
     const [filterText, setFilterText] = useState('')
 
-    const index = useMemo(
-        () => (query.data ? buildOrgTreeIndex(query.data) : null),
-        [query.data],
-    )
-    const aggregates = useMemo(
-        () => (query.data && index ? buildOrgAggregates(query.data, index) : null),
-        [query.data, index],
-    )
+    const nodes = query.data?.nodes ?? null
+    const index = query.data?.index ?? null
+    const aggregates = query.data?.aggregates ?? null
     const tableRows = useMemo(
-        () =>
-            query.data && aggregates ? buildOrgTableRows(query.data, aggregates) : null,
-        [query.data, aggregates],
+        () => (nodes && aggregates ? buildOrgTableRows(nodes, aggregates) : null),
+        [nodes, aggregates],
     )
     const debouncedFilterText = useDebouncedValue(filterText, 250)
     const filteredRows = useMemo(
@@ -144,7 +136,7 @@ export function OrgExplorer() {
                 </ToggleWrap>
             </Header>
 
-            {query.data && query.data.length > 0 && index && sortedRows ? (
+            {query.data && query.data.nodes.length > 0 && index && sortedRows ? (
                 <Content>
                     <TreePane $view={viewMode}>
                         <Panel aria-label="Подразделения">
@@ -191,7 +183,7 @@ export function OrgExplorer() {
                         </StateCard>
                     ) : null}
 
-                    {query.data?.length === 0 ? (
+                    {query.data?.nodes.length === 0 ? (
                         <StateCard>
                             <StateContent>
                                 <StateTitle>В структуре пока нет подразделений</StateTitle>
