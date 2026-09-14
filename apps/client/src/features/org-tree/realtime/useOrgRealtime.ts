@@ -23,6 +23,7 @@ export function useOrgRealtime(): ConnectionStatus {
     useEffect(() => {
         let eventSource: EventSource | null = null
         let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+        let resyncController: AbortController | null = null
         let attempt = 0
         let hasConnected = false
 
@@ -36,8 +37,14 @@ export function useOrgRealtime(): ConnectionStatus {
         }
 
         const resync = async (): Promise<void> => {
+            if (resyncController) {
+                resyncController.abort()
+            }
+            const controller = new AbortController()
+            resyncController = controller
+
             try {
-                const fetched = await fetchOrgTree(new AbortController().signal)
+                const fetched = await fetchOrgTree(controller.signal)
                 queryClient.setQueryData<OrgSnapshot>(ORG_TREE_QUERY_KEY, (current) => {
                     if (!current) {
                         return current
@@ -45,7 +52,14 @@ export function useOrgRealtime(): ConnectionStatus {
                     return createOrgSnapshot(mergeOrgNodes(current.nodes, fetched))
                 })
             } catch {
+                if (controller.signal.aborted) {
+                    return
+                }
                 // keep applying SSE patches; a later reconnect can resync again
+            } finally {
+                if (resyncController === controller) {
+                    resyncController = null
+                }
             }
         }
 
@@ -124,6 +138,8 @@ export function useOrgRealtime(): ConnectionStatus {
                 clearTimeout(reconnectTimer)
                 reconnectTimer = null
             }
+            resyncController?.abort()
+            resyncController = null
         }
     }, [queryClient])
 
