@@ -31,9 +31,14 @@
 - `apps/server/tests/updateLoop.test.ts` — детерминированность update.
 - `apps/server/tests/app.test.ts` — REST + SSE contract (где практично).
 
+### Client — api
+
+- `apps/client/src/features/org-tree/api/fetchOrgTree.ts` — остаётся network boundary: `fetch` + runtime validation, возвращает валидный `OrgNode[]`.
+- `apps/client/src/features/org-tree/api/useOrgTreeQuery.ts` — `queryFn` возвращает `OrgSnapshot` (через `createOrgSnapshot`).
+
 ### Client — model
 
-- `apps/client/src/features/org-tree/model/orgSnapshot.ts` — `OrgSnapshot`, `createOrgSnapshot()`.
+- `apps/client/src/features/org-tree/model/orgSnapshot.ts` — `OrgSnapshot`, `createOrgSnapshot()`, `mergeOrgNodes()`.
 - `apps/client/src/features/org-tree/model/orgEvents.ts` — Zod-схема события, `parseOrgEvent()`.
 - `apps/client/src/features/org-tree/model/applyOrgNodePatch.ts` — `applyOrgNodePatch()`, инкрементальные агрегаты и delta.
 - `apps/client/src/features/org-tree/model/buildOrgAggregates.ts` — расширить внутренний aggregate полем `weightedPerformanceSum`.
@@ -76,7 +81,7 @@ type OrgUpdatedEvent = {
 
 ### Server state
 
-`orgStore` хранит плоский `OrgNode[]` и предоставляет общий доступ для REST и SSE. `updateLoop` каждые 3 секунды выбирает следующий узел по кругу и меняет ровно одну метрику по циклу `headcount → budget → performance → …`, всегда обновляя `updatedAt`. Изменения детерминированные (индексы/счётчики, без `Math.random()`).
+`orgStore` хранит плоский `OrgNode[]` и предоставляет общий доступ для REST и SSE. `updateLoop` каждые 3 секунды выбирает следующий узел по кругу и меняет ровно одну метрику по циклу `headcount → budget → performance → …`, всегда обновляя `updatedAt`. Изменения детерминированные (индексы/счётчики, без `Math.random()`). Значения всегда остаются валидными по `OrgNode` schema: `headcount` — целое неотрицательное, `budget` — конечное неотрицательное, `performance` остаётся в диапазоне 0–100 (например, циклически с заворачиванием), `updatedAt` — ISO datetime.
 
 ### OrgSnapshot
 
@@ -90,7 +95,7 @@ type OrgSnapshot = {
 function createOrgSnapshot(nodes: readonly OrgNode[]): OrgSnapshot
 ```
 
-`createOrgSnapshot` валидирует nodes, строит index и полные aggregates за `O(n)`.
+`createOrgSnapshot` принимает уже валидный `OrgNode[]` (после runtime validation в `fetchOrgTree`) и строит index и полные aggregates за `O(n)`; повторную Zod-валидацию внутри не выполняет. `fetchOrgTree()` остаётся network boundary (fetch + runtime validation), а `queryFn` в `useOrgTreeQuery` возвращает `OrgSnapshot`.
 
 ### Incremental aggregate
 
@@ -131,7 +136,27 @@ function applyOrgNodePatch(
 
 ### Reconnect / backoff
 
-Не полагаться на встроенную стратегию EventSource. На error — закрыть EventSource, переподключаться вручную с exponential backoff `1s → 2s → 4s → 8s → 16s → max 30s`. После успешного `open` backoff сбрасывается. После reconnect — один full refetch/resync, затем только SSE patches. При unmount — закрыть EventSource и очистить reconnect timer.
+Не полагаться на встроенную стратегию EventSource. На error — закрыть EventSource, переподключаться вручную с exponential backoff `1s → 2s → 4s → 8s → 16s → max 30s`. После успешного `open` backoff сбрасывается. При unmount — закрыть EventSource и очистить reconnect timer.
+
+Первичный успешный `open` EventSource не вызывает дополнительный resync: cache уже получен initial `GET /api/org-tree`. Full resync выполняется только после реального reconnect после обрыва.
+
+### Resync / merge
+
+Full resync после reconnect не заменяет cache слепо. Если во время `GET` уже пришёл более новый SSE patch:
+
+- сравнить `nodes` из cache и `nodes` из fetched по `id` + `updatedAt`;
+- для каждого node сохранить более новую версию;
+- после merge один раз полностью построить index/aggregates за `O(n)`;
+- затем снова применять обычные SSE patches за `O(depth)`.
+
+```ts
+function mergeOrgNodes(
+    current: readonly OrgNode[],
+    fetched: readonly OrgNode[],
+): readonly OrgNode[]
+```
+
+Возвращает массив, где каждый `id` представлен более новой версией по `updatedAt`; затем `createOrgSnapshot()` перестраивает snapshot за `O(n)`.
 
 ### Connection status
 
@@ -153,6 +178,8 @@ type ConnectionStatus = 'connecting' | 'online' | 'reconnecting' | 'offline'
 
 CSS wrapper `display: grid` + `grid-template-rows: 0fr → 1fr` и `overflow: hidden`. Без animation library и без JS-измерения `scrollHeight`. При `prefers-reduced-motion: reduce` transition полностью отключается.
 
+Collapsed subtree остаётся смонтированным ради CSS height transition, поэтому его интерактивные элементы помечаются `inert` и/или `aria-hidden="true"` (или эквивалентно) и не попадают в keyboard focus / accessibility tree.
+
 ## State Ownership
 
 - TanStack Query владеет `OrgSnapshot` (query key `['org-tree']`).
@@ -164,7 +191,7 @@ CSS wrapper `display: grid` + `grid-template-rows: 0fr → 1fr` и `overflow: hi
 
 ```text
 initial / resync
-    GET /api/org-tree → validate → createOrgSnapshot() → cache
+    GET /api/org-tree → fetchOrgTree() (validate) → OrgNode[] → createOrgSnapshot() → OrgSnapshot → cache
 
 realtime
     GET /api/org-tree/events (SSE)
@@ -211,7 +238,7 @@ realtime
 - Create: `apps/client/tests/applyOrgNodePatch.test.ts`
 - Create: `apps/client/tests/orgEvents.test.ts`
 
-- [ ] **Step 1:** Написать failing-тесты: snapshot creation; weighted performance delta; update только node + ancestors; stale/duplicate `updatedAt`; untouched aggregates remain unchanged.
+- [ ] **Step 1:** Написать failing-тесты: snapshot creation; weighted performance delta; update только node + ancestors; stale/duplicate `updatedAt`; untouched aggregates remain unchanged; resync merge (старый fetched snapshot не откатывает более новый SSE node в cache).
 - [ ] **Step 2:** Реализовать `createOrgSnapshot`, расширенный aggregate, `applyOrgNodePatch`, Zod-схему события и `parseOrgEvent`.
 - [ ] **Step 3:** Запустить client tests.
 
@@ -263,13 +290,13 @@ pnpm build
 
 - [ ] Server: один mutable store для REST и SSE; детерминированный update (одна метрика за tick, `updatedAt` всегда, `id`/`name`/`parentId` неизменны).
 - [ ] SSE: `GET /api/org-tree/events`, событие `node.updated` с полным `OrgNode`.
-- [ ] Client: кэш на `OrgSnapshot`; patch через `setQueryData`; index сохраняется.
+- [ ] Client: `fetchOrgTree` остаётся network boundary + validation; `queryFn` возвращает `OrgSnapshot`; patch через `setQueryData`; index сохраняется.
 - [ ] Агрегаты: `weightedPerformanceSum` для delta; update только node + ancestors; `O(depth)`; полный build только на initial/resync.
-- [ ] Versioning: stale/duplicate `updatedAt` не затирает новый node; resync после reconnect.
+- [ ] Versioning/resync: stale/duplicate `updatedAt` не затирает новый node; resync после reconnect выполняет merge по `id` + `updatedAt`, а не слепую замену; первичный open не вызывает resync.
 - [ ] Reconnect: ручной, exponential backoff 1s→2s→4s→8s→16s→max 30s, сброс после open, очистка при unmount.
 - [ ] Connection indicator: статусы connecting/online/reconnecting/offline, текст обязателен, не скрывается на мобильном.
 - [ ] Подсветка только реально изменившихся числовых ячеек; fade ~1.5 с; name/level не подсвечиваются; без отдельной подсветки дерева.
 - [ ] Keyboard navigation по видимым строкам (ArrowUp/Down, Home/End, Enter = click); фокус видим; не grid по ячейкам.
-- [ ] Анимация дерева через `grid-template-rows: 0fr → 1fr` + `overflow: hidden`; без library и JS-измерений; `prefers-reduced-motion` отключает transition.
+- [ ] Анимация дерева через `grid-template-rows: 0fr → 1fr` + `overflow: hidden`; collapsed subtree — `inert`/`aria-hidden`; без library и JS-измерений; `prefers-reduced-motion` отключает transition.
 - [ ] Никаких новых dependencies и никакой функциональности step/4.
 - [ ] Реализация начинается только после отдельной команды пользователя.

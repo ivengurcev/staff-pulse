@@ -359,6 +359,7 @@ Debounce реализуется локальным `useDebouncedValue(value, 250
 - Один общий server timer на весь процесс; каждые 3 секунды меняется один существующий узел.
 - Изменения детерминированные, по кругу, без `Math.random()`.
 - На каждом tick меняется ровно одна метрика по циклу `headcount → budget → performance → …`; `updatedAt` обновляется всегда.
+- Значения всегда остаются валидными по `OrgNode` schema (в частности `performance` в диапазоне 0–100).
 - `id`/`name`/`parentId` в realtime не меняются.
 
 ### SSE event contract
@@ -386,6 +387,8 @@ type OrgSnapshot = {
 
 Initial GET / resync полностью валидирует nodes, строит index и aggregates за `O(n)`. Realtime patch через `queryClient.setQueryData()` заменяет только один `OrgNode`; index сохраняется, потому что структура дерева realtime не меняется; aggregates обновляются частично.
 
+Граница: `fetchOrgTree()` остаётся network boundary и выполняет runtime validation ответа; `createOrgSnapshot(nodes)` принимает уже валидный `OrgNode[]` и строит index + aggregates (повторную Zod-валидацию не выполняет); `queryFn` в `useOrgTreeQuery` возвращает `OrgSnapshot`.
+
 ### Incremental aggregates
 
 Внутренний aggregate расширяется данными, достаточными для delta update: `totalHeadcount`, `totalBudget`, `weightedPerformanceSum`, `averagePerformance`.
@@ -396,11 +399,15 @@ Initial GET / resync полностью валидирует nodes, строит
 
 ### Versioning / race protection
 
-`updatedAt` используется как версия узла. Stale/duplicate patch не должен затирать более новый node. После reconnect выполняется один full `GET /api/org-tree` для resync; полный snapshot и агрегаты перестраиваются один раз; затем снова используются только SSE patches.
+`updatedAt` используется как версия узла. Stale/duplicate patch не должен затирать более новый node. После reconnect выполняется один full `GET /api/org-tree` для resync.
+
+Full resync не заменяет cache слепо: nodes из cache и из fetched сравниваются по `id` + `updatedAt`, для каждого node сохраняется более новая версия, затем index/aggregates перестраиваются один раз за `O(n)`, после чего снова применяются обычные SSE patches.
 
 ### Reconnect
 
 Не полагаться на встроенную стратегию EventSource. На error: закрыть EventSource, reconnect вручную с exponential backoff `1s → 2s → 4s → 8s → 16s → max 30s`. После успешного `open` backoff сбрасывается. После reconnect — один full refetch/resync. При unmount — закрыть EventSource и очистить reconnect timer.
+
+Первичный успешный `open` EventSource не вызывает дополнительный resync; full resync выполняется только после реального reconnect после обрыва.
 
 ### Connection status
 
@@ -418,6 +425,8 @@ Initial GET / resync полностью валидирует nodes, строит
 
 Не добавлять animation library и не измерять `scrollHeight` через JS. Использовать CSS wrapper с переходом `grid-template-rows: 0fr → 1fr` и `overflow: hidden`. При `prefers-reduced-motion: reduce` transition полностью отключается.
 
+Collapsed subtree остаётся смонтированным ради CSS height transition, поэтому его интерактивные элементы помечаются `inert` и/или `aria-hidden="true"` (или эквивалентно) и не попадают в keyboard focus/accessibility.
+
 ### Boundaries
 
 Server: store/state отдельно от SSE transport; timer/update logic отдельно; REST и SSE используют один store.
@@ -428,6 +437,6 @@ Client: realtime/EventSource/backoff/status отдельно от UI; runtime va
 
 ### Tests
 
-Сохранить текущий test stack. Автоматически покрыть: deterministic server update; SSE/REST contract где практично; snapshot creation; incremental aggregate update; weighted performance delta; update только node + ancestors; stale/duplicate `updatedAt`; untouched aggregates remain unchanged.
+Сохранить текущий test stack. Автоматически покрыть: deterministic server update (значения остаются валидными по schema); SSE/REST contract где практично; snapshot creation; incremental aggregate update; weighted performance delta; update только node + ancestors; stale/duplicate `updatedAt`; untouched aggregates remain unchanged; resync merge (старый fetched snapshot не откатывает более новый SSE node в cache).
 
 Manual review: realtime update ~3 сек; нет full refetch при обычном realtime; один resync после reconnect; connection indicator; exponential backoff; cell fade; keyboard navigation; tree animation; `prefers-reduced-motion`.
