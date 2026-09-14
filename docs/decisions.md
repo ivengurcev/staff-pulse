@@ -108,7 +108,7 @@ import App from '@/App.tsx'
 Development запускается с условием `development`, а собранное приложение использует `default`:
 
 ```text
-dev:   tsx --conditions=development watch src/index.ts
+dev:   tsx watch --conditions=development src/index.ts
 build: tsc -p tsconfig.json
 start: node dist/index.js
 ```

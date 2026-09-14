@@ -7,11 +7,15 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "tsc -p tsconfig.test.json --noEmit && node --test tests/*.test.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.102.8",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "styled-components": "^6.5.3",
+    "zod": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

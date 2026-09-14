@@ -106,7 +106,7 @@ export type OrgNode = {
         }
     },
     "scripts": {
-        "dev": "tsx --conditions=development watch src/index.ts",
+        "dev": "tsx watch --conditions=development src/index.ts",
         "build": "tsc -p tsconfig.json",
         "start": "node dist/index.js"
     }
@@ -233,13 +233,13 @@ export function getInitialExpandedNodeIds(
 - Produces: client dependencies `@tanstack/react-query`, `zod`, `styled-components`.
 - Produces: package-level `test` scripts using Node 24 built-in test runner.
 
-- [ ] **Step 1: Install the approved client dependencies**
+- [x] **Step 1: Install the approved client dependencies**
 
 ```bash
 pnpm --filter @staff-pulse/client add @tanstack/react-query zod styled-components
 ```
 
-- [ ] **Step 2: Add exact server imports and scripts**
+- [x] **Step 2: Add exact server imports and scripts**
 
 ```json
 "imports": {
@@ -249,14 +249,14 @@ pnpm --filter @staff-pulse/client add @tanstack/react-query zod styled-component
     }
 },
 "scripts": {
-    "dev": "tsx --conditions=development watch src/index.ts",
+    "dev": "tsx watch --conditions=development src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "tsc -p tsconfig.test.json --noEmit && node --conditions=development --test tests/*.test.ts"
 }
 ```
 
-- [ ] **Step 3: Add test type-check configs**
+- [x] **Step 3: Add test type-check configs**
 
 Server `tsconfig.test.json` extends production config, sets `noEmit: true`, `rootDir: "."`, `customConditions: ["development"]`, and includes `src` plus `tests`.
 
@@ -268,7 +268,7 @@ Client `tsconfig.test.json` extends `tsconfig.app.json`, sets `types: ["node"]`,
 
 В чистых client model/api-модулях, которые исполняет `node:test`, relative-imports содержат расширение `.ts`; это совместимо с уже включённым `allowImportingTsExtensions` и Vite. UI использует существующий client alias `@/*`.
 
-- [ ] **Step 4: Configure Vite API proxy without changing the existing alias**
+- [x] **Step 4: Configure Vite API proxy without changing the existing alias**
 
 ```ts
 server: {
@@ -278,7 +278,7 @@ server: {
 },
 ```
 
-- [ ] **Step 5: Verify configuration remains buildable before feature code**
+- [x] **Step 5: Verify configuration remains buildable before feature code**
 
 ```bash
 pnpm build
@@ -286,7 +286,7 @@ pnpm build
 
 Expected: existing client and server compile successfully; feature tests start in Tasks 2 and 3.
 
-- [ ] **Step 6: Commit gate**
+- [x] **Step 6: Commit gate**
 
 Do not commit. If separately authorized, stage only Task 1 files and use `chore: configure foundation dependencies`.
 
@@ -307,7 +307,7 @@ Do not commit. If separately authorized, stage only Task 1 files and use `chore:
 - Produces: `app: Hono` usable by `serve()` and tests.
 - Produces: `GET /health` and `GET /api/org-tree`.
 
-- [ ] **Step 1: Write failing server contract tests**
+- [x] **Step 1: Write failing server contract tests**
 
 Use `node:test`, `node:assert/strict`, and `app.request()` to assert:
 
@@ -322,7 +322,7 @@ every parentId      → existing id
 maximum depth       → 3
 ```
 
-- [ ] **Step 2: Run tests and confirm the expected failure**
+- [x] **Step 2: Run tests and confirm the expected failure**
 
 ```bash
 pnpm --filter @staff-pulse/server test
@@ -330,11 +330,11 @@ pnpm --filter @staff-pulse/server test
 
 Expected: FAIL because `app.ts` and the fixture do not exist.
 
-- [ ] **Step 3: Define the server contract and deterministic fixture**
+- [x] **Step 3: Define the server contract and deterministic fixture**
 
 Create the exact `OrgNode` type. Generate the hierarchy with the stable IDs, names, formulas, order and timestamp documented above. Export readonly flat data; do not compute aggregates.
 
-- [ ] **Step 4: Extract the Hono app and add the endpoint**
+- [x] **Step 4: Extract the Hono app and add the endpoint**
 
 `app.ts` owns route registration and exports `app`. `index.ts` imports it through `#server/app` and only calls:
 
@@ -344,7 +344,7 @@ serve({ fetch: app.fetch, port: 3001 })
 
 `GET /api/org-tree` returns the flat array directly, not an envelope.
 
-- [ ] **Step 5: Run server tests and build**
+- [x] **Step 5: Run server tests and build**
 
 ```bash
 pnpm --filter @staff-pulse/server test
@@ -353,7 +353,7 @@ pnpm --filter @staff-pulse/server build
 
 Expected: all tests PASS and `dist` retains supported `#server/...` specifiers.
 
-- [ ] **Step 6: Verify compiled runtime resolution**
+- [x] **Step 6: Verify compiled runtime resolution**
 
 Terminal A:
 
@@ -370,7 +370,7 @@ curl --fail http://localhost:3001/api/org-tree
 
 Expected: both return JSON with HTTP 200 and no module-resolution error.
 
-- [ ] **Step 7: Commit gate**
+- [x] **Step 7: Commit gate**
 
 Do not commit. If separately authorized, stage only Task 2 files and use `feat(server): add organization tree API`.
 
@@ -392,11 +392,11 @@ Do not commit. If separately authorized, stage only Task 2 files and use `feat(s
 - Produces: `buildOrgTreeIndex(nodes): OrgTreeIndex`.
 - Produces: `getInitialExpandedNodeIds(index): ReadonlySet<string>`.
 
-- [ ] **Step 1: Write failing schema and domain-validation tests**
+- [x] **Step 1: Write failing schema and domain-validation tests**
 
 Cover a valid tree and independent failures for duplicate ID, missing parent, self-parent and a two-node cycle. Assert rejection of negative headcount/budget, performance outside 0–100 and invalid datetime. Assert that `[]` passes.
 
-- [ ] **Step 2: Run validation tests and confirm failure**
+- [x] **Step 2: Run validation tests and confirm failure**
 
 ```bash
 pnpm --filter @staff-pulse/client test
@@ -404,19 +404,19 @@ pnpm --filter @staff-pulse/client test
 
 Expected: FAIL because model modules do not exist.
 
-- [ ] **Step 3: Implement schema and `validateOrgTree()`**
+- [x] **Step 3: Implement schema and `validateOrgTree()`**
 
 Keep Zod parsing and hierarchy validation separate. Throw `OrgTreeValidationError extends Error` with deterministic diagnostic messages for tests; UI never exposes raw diagnostics.
 
-- [ ] **Step 4: Write index tests**
+- [x] **Step 4: Write index tests**
 
 For an intentionally unsorted valid fixture, assert `nodesById`, child membership, stable sibling order, `rootIds`, and initial expansion containing only roots. Assert leaves have no children entry.
 
-- [ ] **Step 5: Implement indexes and initial expansion**
+- [x] **Step 5: Implement indexes and initial expansion**
 
 Implement the exact types and algorithms from “Tree indexes”. Do not add UI state to `OrgNode` and do not mutate input nodes.
 
-- [ ] **Step 6: Run client model tests**
+- [x] **Step 6: Run client model tests**
 
 ```bash
 pnpm --filter @staff-pulse/client test
@@ -424,7 +424,7 @@ pnpm --filter @staff-pulse/client test
 
 Expected: all schema, validation, index and expansion tests PASS.
 
-- [ ] **Step 7: Commit gate**
+- [x] **Step 7: Commit gate**
 
 Do not commit. If separately authorized, stage only Task 3 files and use `feat(client): validate organization tree data`.
 
@@ -445,7 +445,7 @@ Do not commit. If separately authorized, stage only Task 3 files and use `feat(c
 - Produces: `useOrgTreeQuery()` with key `['org-tree']` and `staleTime: 5_000`.
 - Produces: one app-level `QueryClient` and provider.
 
-- [ ] **Step 1: Write failing boundary tests**
+- [x] **Step 1: Write failing boundary tests**
 
 Stub `globalThis.fetch` using built-in Node APIs and assert that `fetchOrgTree(signal)`:
 
@@ -455,7 +455,7 @@ Stub `globalThis.fetch` using built-in Node APIs and assert that `fetchOrgTree(s
 - rejects malformed JSON data through Zod;
 - rejects a schema-valid cyclic hierarchy through `validateOrgTree()`.
 
-- [ ] **Step 2: Run the boundary tests and confirm failure**
+- [x] **Step 2: Run the boundary tests and confirm failure**
 
 ```bash
 pnpm --filter @staff-pulse/client test
@@ -463,11 +463,11 @@ pnpm --filter @staff-pulse/client test
 
 Expected: existing model tests PASS and boundary tests FAIL because `fetchOrgTree` does not exist.
 
-- [ ] **Step 3: Implement the boundary pipeline once**
+- [x] **Step 3: Implement the boundary pipeline once**
 
 `fetchOrgTree` calls relative `/api/org-tree`, passes AbortSignal, rejects non-2xx, parses JSON as `unknown`, runs `orgTreeSchema.parse`, then `validateOrgTree`, and returns only validated nodes.
 
-- [ ] **Step 4: Run boundary tests**
+- [x] **Step 4: Run boundary tests**
 
 ```bash
 pnpm --filter @staff-pulse/client test
@@ -475,7 +475,7 @@ pnpm --filter @staff-pulse/client test
 
 Expected: model and boundary tests PASS, including exact AbortSignal identity.
 
-- [ ] **Step 5: Define the query hook**
+- [x] **Step 5: Define the query hook**
 
 ```ts
 useQuery({
@@ -489,15 +489,15 @@ useQuery({
 
 Не добавлять `useEffect + fetch`, manual cache, polling, realtime, custom invalidation или custom retry policy на FOUNDATION.
 
-- [ ] **Step 6: Wire the provider**
+- [x] **Step 6: Wire the provider**
 
 Create one `QueryClient` outside React render. `App.tsx` wraps `OrgExplorer` with `QueryClientProvider`.
 
-- [ ] **Step 7: Verify development data flow**
+- [x] **Step 7: Verify development data flow**
 
 Run `pnpm dev`, open Vite, and confirm `/api/org-tree` goes through the proxy with HTTP 200. Application source must not contain hardcoded `localhost:3001`.
 
-- [ ] **Step 8: Commit gate**
+- [x] **Step 8: Commit gate**
 
 Do not commit. If separately authorized, stage only Task 4 files and use `feat(client): add cached organization query`.
 
@@ -522,31 +522,31 @@ Do not commit. If separately authorized, stage only Task 4 files and use `feat(c
 - Produces: `OrgTree({ index, expandedNodeIds, onToggle })`.
 - Produces: recursive `OrgTreeNode({ nodeId, index, expandedNodeIds, onToggle })`.
 
-- [ ] **Step 1: Implement four render branches**
+- [x] **Step 1: Implement four render branches**
 
 Call `useOrgTreeQuery`, `useMemo` and `useState` unconditionally before all render branches. Then handle first-load loading, error with retry, valid empty array and success. During background refetch keep the success tree mounted.
 
-- [ ] **Step 2: Build indexes once per data reference**
+- [x] **Step 2: Build indexes once per data reference**
 
 Use `useMemo(() => data ? buildOrgTreeIndex(data) : null, [data])` before conditional returns. Derive the initial root set with a second unconditional `useMemo` from the nullable index. Do not aggregate headcount, budget or performance.
 
-- [ ] **Step 3: Implement feature-owned expansion**
+- [x] **Step 3: Implement feature-owned expansion**
 
 Use the nullable state strategy from “Initial expansion and ownership”. Toggle only nodes with children and update via a new `Set`.
 
-- [ ] **Step 4: Render recursive semantic lists**
+- [x] **Step 4: Render recursive semantic lists**
 
 Render `rootIds`; resolve each node through `nodesById`; render child IDs only when expanded. Branch buttons expose `aria-expanded`; leaves are not false toggles.
 
-- [ ] **Step 5: Add accessible performance presentation**
+- [x] **Step 5: Add accessible performance presentation**
 
 Centralize thresholds, map them to high/medium/low labels and styled colors, and show both percentage and label. Do not put thresholds in the API schema.
 
-- [ ] **Step 6: Replace starter styling**
+- [x] **Step 6: Replace starter styling**
 
 Use styled-components for layout, tree rows, indentation, controls, states and indicators. Add responsive sizing without table/split-view. Remove starter CSS/assets only after imports are gone. Do not use React `style` props or HTML `style` attributes.
 
-- [ ] **Step 7: Run static checks**
+- [x] **Step 7: Run static checks**
 
 ```bash
 pnpm --filter @staff-pulse/client lint
@@ -556,7 +556,7 @@ pnpm build
 
 Expected: lint has 0 errors, tests PASS and both apps build.
 
-- [ ] **Step 8: Commit gate**
+- [x] **Step 8: Commit gate**
 
 Do not commit. If separately authorized, stage only Task 5 files and use `feat(client): add interactive organization tree`.
 
@@ -575,7 +575,7 @@ Do not commit. If separately authorized, stage only Task 5 files and use `feat(c
 
 - Produces: run instructions, factual AI notes, FOUNDATION architecture/data-model documentation, two ADR and evidence for acceptance criteria.
 
-- [ ] **Step 1: Run complete automated verification**
+- [x] **Step 1: Run complete automated verification**
 
 ```bash
 pnpm --filter @staff-pulse/server test
@@ -586,19 +586,19 @@ pnpm build
 
 Expected: every command exits 0; tests have no failures; lint has no errors.
 
-- [ ] **Step 2: Verify compiled API**
+- [x] **Step 2: Verify compiled API**
 
 Start `pnpm --filter @staff-pulse/server start`, request `/health` and `/api/org-tree`, and confirm HTTP 200, 51 nodes, 3 roots, depth 3, unique IDs and valid parents.
 
-- [ ] **Step 3: Verify success and interaction manually**
+- [x] **Step 3: Verify success and interaction manually**
 
 Run `pnpm dev`. Confirm Division and Department are initially visible while Teams are hidden; expand/collapse Department and Division; verify every row shows name, headcount, numeric performance and non-color label.
 
-- [ ] **Step 4: Verify loading, network error and retry**
+- [x] **Step 4: Verify loading, network error and retry**
 
 Use browser throttling to observe loading. Stop server and reload for error-state; restart it and press `Повторить` to return to success without page reload.
 
-- [ ] **Step 5: Verify empty and invalid responses**
+- [x] **Step 5: Verify empty and invalid responses**
 
 Use browser DevTools Local Overrides for `/api/org-tree`, without changing API/application code:
 
@@ -607,7 +607,7 @@ Use browser DevTools Local Overrides for `/api/org-tree`, without changing API/a
 3. Return a node with `performance: 101` and confirm Zod error-state.
 4. Disable overrides and confirm success.
 
-- [ ] **Step 6: Check scope and styles**
+- [x] **Step 6: Check scope and styles**
 
 ```bash
 rg -n 'style=|style:\s*\{' apps/client/src
@@ -616,7 +616,7 @@ rg -n 'localhost:3001' apps/client/src
 
 Expected: no inline style and no hardcoded API origin. Confirm no table, search, realtime, Docker or later-step feature exists.
 
-- [ ] **Step 7: Create FOUNDATION architecture and data-model documentation**
+- [x] **Step 7: Create FOUNDATION architecture and data-model documentation**
 
 Create or update `docs/architecture.md` with only the implemented FOUNDATION layers:
 
@@ -636,7 +636,7 @@ Create or update `docs/data-model.md` with:
 
 Do not describe aggregation or realtime contracts as implemented. They remain future-stage requirements.
 
-- [ ] **Step 8: Record the two FOUNDATION ADRs**
+- [x] **Step 8: Record the two FOUNDATION ADRs**
 
 Create or update `docs/adr/001-api-boundary-validation.md` with Context, Decision, Alternatives and Consequences for Zod object validation plus separate hierarchy validation. Alternatives: trusting shared TypeScript types and using only per-object Zod validation.
 
@@ -644,7 +644,7 @@ Create or update `docs/adr/002-server-state-cache.md` with Context, Decision, Al
 
 Both ADRs describe only implemented FOUNDATION behavior and use present tense only after the corresponding code exists.
 
-- [ ] **Step 9: Replace starter README**
+- [x] **Step 9: Replace starter README**
 
 Document Node 24.19, pnpm 12.4.1, `pnpm install`, one-command `pnpm dev`, build, tests/lint, endpoints, workspace structure and FOUNDATION scope.
 
@@ -655,21 +655,21 @@ Add “AI в разработке” with factual statements:
 - Manual decisions include client `@/*` vs server `#server/*`, feature-level expansion ownership and two-stage validation.
 - List actual manual rewrites and their reasons; do not claim rewrites that did not occur.
 
-- [ ] **Step 10: Report and stop for manual review**
+- [x] **Step 10: Report and stop for manual review**
 
 Report files, assumptions, exact commands and outputs. Do not create a commit or `step/1` tag. Wait for manual review and a separate command before commit/tag or `step/2`.
 
 ## Review Checklist
 
-- [ ] Every FOUNDATION requirement maps to a task and verification step.
-- [ ] Server alias is exactly `#server/*` with the approved conditional mapping.
-- [ ] Server dev/build/start scripts match the approved commands.
-- [ ] API remains a flat direct array and `/health` remains available.
-- [ ] Client rejects invalid shapes and graph topology.
-- [ ] Query uses `staleTime: 5_000` and forwards AbortSignal.
-- [ ] Query performs no manual invalidation and retains default structural sharing.
-- [ ] `OrgExplorer` owns expansion and only roots start expanded.
-- [ ] All four UI states and interactions have explicit checks.
-- [ ] Architecture, data model and both ADR files describe only implemented FOUNDATION behavior.
-- [ ] No later-stage functionality is included.
-- [ ] Implementation starts only after a separate explicit command from the user.
+- [x] Every FOUNDATION requirement maps to a task and verification step.
+- [x] Server alias is exactly `#server/*` with the approved conditional mapping.
+- [x] Server dev/build/start scripts match the approved commands.
+- [x] API remains a flat direct array and `/health` remains available.
+- [x] Client rejects invalid shapes and graph topology.
+- [x] Query uses `staleTime: 5_000` and forwards AbortSignal.
+- [x] Query performs no manual invalidation and retains default structural sharing.
+- [x] `OrgExplorer` owns expansion and only roots start expanded.
+- [x] All four UI states and interactions have explicit checks.
+- [x] Architecture, data model and both ADR files describe only implemented FOUNDATION behavior.
+- [x] No later-stage functionality is included.
+- [x] Implementation starts only after a separate explicit command from the user.

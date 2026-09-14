@@ -1,75 +1,71 @@
-# React + TypeScript + Vite
+# Staff Pulse
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Дашборд для просмотра оргструктуры компании. На этапе FOUNDATION реализованы mock API, runtime-валидация ответа, кэширование server state и интерактивное дерево подразделений.
 
-Currently, two official plugins are available:
+## Требования
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 24.19.0;
+- pnpm 12.4.1.
 
-## React Compiler
+## Запуск
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Установить зависимости:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm install
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Запустить client и server одной командой:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+pnpm dev
 ```
+
+- Client: `http://localhost:5173`;
+- Server: `http://localhost:3001`.
+
+## Команды
+
+```bash
+pnpm build
+pnpm --filter @staff-pulse/client lint
+pnpm --filter @staff-pulse/client test
+pnpm --filter @staff-pulse/server test
+```
+
+## API
+
+- `GET /health` — состояние server;
+- `GET /api/org-tree` — плоский массив из 51 узла оргструктуры.
+
+Client обращается к относительному `/api/org-tree`; Vite proxy перенаправляет запрос на Hono server.
+
+## Структура
+
+```text
+apps/
+    client/    React, Vite, TanStack Query, Zod, styled-components
+    server/    Hono mock API
+docs/
+    adr/       архитектурные решения
+    plans/     утверждённые планы реализации
+    steps/     требования и границы этапов
+```
+
+Подробнее:
+
+- [Архитектура](docs/architecture.md);
+- [Модель данных](docs/data-model.md);
+- [План FOUNDATION](docs/plans/01-foundation.md).
+
+## Текущий scope
+
+FOUNDATION включает API, валидацию, кэш и интерактивное дерево с loading/error/empty/success состояниями. Аналитическая таблица, агрегация, realtime и production-окружение относятся к следующим этапам и пока не реализованы.
+
+## AI в разработке
+
+AI помог структурировать требования, сравнить варианты server alias, подготовить и реализовать утверждённый план FOUNDATION, написать тесты и документацию.
+
+Разработчик вручную определил и утвердил ключевые решения: разделение `@/*` на client и `#server/*` на server, двухэтапную валидацию API boundary, feature-level ownership состояния раскрытия и использование встроенного `node:test`.
+
+На текущем этапе сгенерированный код ещё не переписывался вручную: он ожидает отдельного ручного ревью. После ревью этот раздел должен быть актуализирован фактическими изменениями и их причинами.
