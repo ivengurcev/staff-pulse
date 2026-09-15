@@ -57,6 +57,13 @@
 
 Подробный утверждённый план реализации: `docs/plans/03-polish.md`.
 
-Статус: architecture approved, implementation has not started.
+Статус:
 
-Commit и tag `step/3` не создавать до ручного ревью.
+- implementation complete;
+- automated checks passed;
+- manual review passed;
+- fixes applied;
+- documentation synced;
+- ready for `step/3` tag.
+
+Tag `step/3` ещё не создан и ставится только по отдельной команде.

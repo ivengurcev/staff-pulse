@@ -60,11 +60,13 @@ TanStack Query хранит server state (`OrgSnapshot`) с `staleTime: 5000`, q
 
 ## Агрегаты и derived data
 
-Индекс, агрегаты и базовые строки таблицы считаются чистыми model-функциями и мемоизируются через `useMemo` только при изменении `query.data`:
+`index` и `aggregates` НЕ строятся в `OrgExplorer` через `useMemo`. Их создаёт `createOrgSnapshot()` на initial load / resync (`buildOrgTreeIndex()` + `buildOrgAggregates()`, post-order `O(n)`, взвешенная performance) и хранит в `OrgSnapshot` внутри TanStack Query. `OrgExplorer` берёт `snapshot.index` и `snapshot.aggregates` напрямую.
 
-- `index` → `buildOrgTreeIndex()`;
-- `aggregates` → `buildOrgAggregates()` (post-order, `O(n)`, взвешенная performance);
-- `tableRows` → `buildOrgTableRows()`.
+Через `useMemo` в `OrgExplorer` считаются только derived строки таблицы:
+
+- `tableRows` → `buildOrgTableRows(nodes, aggregates)`;
+- `filteredRows` → `filterOrgTableRows(rows, debouncedFilterText)`;
+- `sortedRows` → `sortOrgTableRows(filteredRows, sort)`.
 
 `filteredRows` пересчитываются при изменении `rows` или debounced-фильтра; `sortedRows` — при изменении `filteredRows` или `sort`. Отдельного cache/selector layer поверх TanStack Query нет.
 
