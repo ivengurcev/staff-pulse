@@ -1,4 +1,4 @@
-import styled, { keyframes } from 'styled-components'
+import styled, { css, keyframes } from 'styled-components'
 
 import { levelColors, type OrgLevelTone } from './orgTableFormat.ts'
 
@@ -107,7 +107,11 @@ export const Td = styled.td<{ $numeric?: boolean; $highlight?: boolean }>`
     text-overflow: ellipsis;
     text-align: ${({ $numeric }) => ($numeric ? 'right' : 'left')};
     ${({ $numeric }) => ($numeric ? 'font-variant-numeric: tabular-nums; white-space: nowrap;' : '')}
-    ${({ $highlight }) => ($highlight ? `animation: ${highlightFade} 1.5s ease-out;` : '')}
+    ${({ $highlight }) =>
+        $highlight &&
+        css`
+            animation: ${highlightFade} 1.5s ease-out;
+        `}
 `
 
 export const LevelBadge = styled.span<{ $tone: OrgLevelTone }>`
