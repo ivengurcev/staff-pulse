@@ -1,6 +1,15 @@
 # Staff Pulse
 
-Дашборд для просмотра оргструктуры компании. Реализованы mock API, runtime-валидация ответа, кэширование server state, интерактивное дерево подразделений и аналитическая таблица с агрегированными показателями.
+Дашборд для мониторинга оргструктуры компании (дивизионы → отделы → команды). Интерактивное дерево и аналитическая таблица с агрегированными показателями, обновляемые в реальном времени по SSE.
+
+## Стек
+
+- React 19, Vite 8, TypeScript 6;
+- TanStack Query — server state и кэш;
+- Zod — runtime-валидация API boundary;
+- styled-components — стилизация;
+- Hono — mock API (REST + SSE);
+- pnpm workspace (`apps/client`, `apps/server`).
 
 ## Требования
 
@@ -9,16 +18,10 @@
 
 ## Запуск
 
-Установить зависимости:
+После клонирования выполнить одной командой:
 
 ```bash
-pnpm install
-```
-
-Запустить client и server одной командой:
-
-```bash
-pnpm dev
+pnpm install && pnpm dev
 ```
 
 - Client: `http://localhost:5173`;
@@ -36,18 +39,32 @@ pnpm --filter @staff-pulse/server test
 ## API
 
 - `GET /health` — состояние server;
-- `GET /api/org-tree` — плоский массив из 51 узла оргструктуры.
+- `GET /api/org-tree` — плоский массив из 51 узла оргструктуры (Division → Department → Team);
+- `GET /api/org-tree/events` — SSE-поток realtime-обновлений (`node.updated` с полным `OrgNode`).
 
-Client обращается к относительному `/api/org-tree`; Vite proxy перенаправляет запрос на Hono server.
+Client обращается к относительным путям `/api/*`; в development Vite proxy направляет их на Hono server.
+
+## Реализовано
+
+- интерактивное дерево: раскрытие/сворачивание, второй уровень по умолчанию, `name`/`headcount`/`performance`;
+- аналитическая таблица: агрегированные `headcount`, `budget`, взвешенная `performance`, уровень узла;
+- сортировка по всем колонкам (click → ASC, double click → DESC) и realtime-фильтр по названию (debounce 250 мс);
+- двусторонняя синхронизация выбора строки ↔ узла дерева;
+- realtime-обновления по SSE без полного refetch;
+- инкрементальный пересчёт агрегатов (только изменённый узел и его предки);
+- connection indicator (`connecting` / `online` / `reconnecting` / `offline`);
+- ручной reconnect с exponential backoff (`1s → 2s → 4s → 8s → 16s → max 30s`) и race-safe resync после обрыва;
+- keyboard navigation по таблице (`ArrowUp`/`ArrowDown`, `Home`/`End`, `Enter`);
+- подсветка обновившихся ячеек, анимация раскрытия дерева, поддержка `prefers-reduced-motion`.
 
 ## Структура
 
 ```text
 apps/
     client/    React, Vite, TanStack Query, Zod, styled-components
-    server/    Hono mock API
+    server/    Hono mock API (REST + SSE)
 docs/
-    adr/       архитектурные решения
+    adr/       архитектурные решения (ADR)
     plans/     утверждённые планы реализации
     steps/     требования и границы этапов
 ```
@@ -56,17 +73,39 @@ docs/
 
 - [Архитектура](docs/architecture.md);
 - [Модель данных](docs/data-model.md);
-- [План FOUNDATION](docs/plans/01-foundation.md);
-- [План CORE](docs/plans/02-core.md).
+- [ADR](docs/adr/).
 
-## Текущий scope
+## Этапы
 
-FOUNDATION включает API, валидацию, кэш и интерактивное дерево с loading/error/empty/success состояниями. CORE добавляет аналитическую таблицу с агрегированными показателями (headcount, budget, взвешенная performance), сортировку, фильтр по названию с debounce 250 мс, синхронизацию выбора строки с деревом и форматирование бюджета. Realtime-обновления и production-окружение относятся к следующим этапам и пока не реализованы.
+- `step/1 — FOUNDATION` — завершён и тегирован;
+- `step/2 — CORE` — завершён и тегирован;
+- `step/3 — POLISH` — завершён и тегирован;
+- `step/4 — BONUS` — не создавался: BONUS не реализовывался.
+
+## Что не реализовано
+
+`step/4 — BONUS` (production-окружение и AI-поиск) сознательно не реализовывался:
+
+- Docker / docker-compose / `.env`;
+- Nginx / gzip;
+- ограничение production bundle ≤200 КБ gzip;
+- AI-поиск с fallback на текстовый поиск.
 
 ## AI в разработке
 
-AI помог структурировать требования, сравнить варианты server alias, подготовить и реализовать утверждённые планы FOUNDATION и CORE, написать тесты и документацию.
+AI-инструменты использовались на всех этапах разработки:
 
-Разработчик вручную определил и утвердил ключевые решения: разделение `@/*` на client и `#server/*` на server, двухэтапную валидацию API boundary, feature-level ownership состояния, использование встроенного `node:test`, post-order агрегацию и CSS-only responsive-раскладку.
+- декомпозиция исходного задания на этапы (FOUNDATION / CORE / POLISH) и формулировка требований;
+- сравнение вариантов архитектуры и фиксация решений (alias `@/*` vs `#server/*`, двухэтапная валидация API boundary, TanStack Query, `OrgSnapshot`, SSE, инкрементальные агрегаты) в `docs/decisions.md` и ADR;
+- реализация по утверждённым планам (`docs/plans/*`) — server и client код;
+- тесты (`node:test`) и проектная документация (`docs/*`, README).
 
-FOUNDATION прошёл ручное ревью; подтверждённого ручного переписывания сгенерированного кода на FOUNDATION нет. CORE реализован по утверждённому плану и ожидает ручного ревью; при появлении ручных правок их содержание и причины будут перечислены здесь.
+Разработчик вручную:
+
+- утверждал архитектуру и границы этапов;
+- проводил code review и manual UX/realtime review;
+- находил ошибки и отправлял точечные исправления.
+
+Пример найденного и исправленного бага: в `orgTable.styles.ts` keyframes `highlightFade` интерполировался в обычную строку, из-за чего styled-components не инжектил `@keyframes` и подсветка обновившихся ячеек не работала; исправлено импортом `css` и обёрткой анимации в `css`-шаблон.
+
+Существенные участки сгенерированного кода вручную не переписывались: после ревью код принимался с точечными правками, полной ручной переработки AI-кода не было.

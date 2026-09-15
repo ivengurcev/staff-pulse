@@ -107,17 +107,13 @@ Codex не переключает текущий этап самостоятел
 Сейчас активен:
 
 ```text
-step/3 — POLISH
+final documentation / submission packaging
 ```
 
-`step/1 — FOUNDATION` завершён. `step/2 — CORE` полностью завершён и тегирован (`step/2`).
+`step/1 — FOUNDATION`, `step/2 — CORE` и `step/3 — POLISH` завершены и тегированы (`step/1`, `step/2`, `step/3`).
 
-Конкретные требования и дополнения:
+`step/4 — BONUS` по решению разработчика не реализуется: Docker/Nginx/`.env`/bundle limit/AI-search не делаются.
 
-```text
-docs/steps/03-polish.md
-```
+Текущая задача — привести финальную документацию к формату сдачи из `docs/task.md` (README, ADR, статусы этапов).
 
-План `docs/plans/03-polish.md`: реализация step/3 завершена, проверена, manual review пройден; документация синхронизирована; этап ожидает финального tag `step/3`.
-
-Не переключаться на step/4 и не создавать commit/tag без отдельной команды.
+Не начинать кодовые изменения и не создавать commit/tag без отдельной команды.
