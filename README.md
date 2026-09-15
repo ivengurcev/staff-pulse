@@ -2,14 +2,17 @@
 
 Дашборд для мониторинга оргструктуры компании (дивизионы → отделы → команды). Интерактивное дерево и аналитическая таблица с агрегированными показателями, обновляемые в реальном времени по SSE.
 
+## Скриншоты
+
 ### Desktop
 
 ![Staff Pulse desktop](docs/screenshots/desktop.png)
 
 ### Mobile
 
-![Staff Pulse mobile](docs/screenshots/mobile.png)
-![Staff Pulse mobile](docs/screenshots/mobile-table.png)
+![Staff Pulse mobile tree](docs/screenshots/mobile.png)
+
+![Staff Pulse mobile table](docs/screenshots/mobile-table.png)
 
 ## Стек
 
