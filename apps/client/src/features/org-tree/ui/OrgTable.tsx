@@ -65,7 +65,7 @@ export function OrgTable({
     const [highlighted, setHighlighted] = useState<
         ReadonlyMap<string, ReadonlySet<HighlightColumn>>
     >(new Map())
-    const [activeRowIndex, setActiveRowIndex] = useState(-1)
+    const [activeRowId, setActiveRowId] = useState<string | null>(null)
 
     useEffect(() => {
         const prefersReducedMotion = window.matchMedia(
@@ -134,6 +134,15 @@ export function OrgTable({
         }
     }
 
+    const activateRow = (index: number): void => {
+        const row = rows[index]
+        if (!row) {
+            return
+        }
+        setActiveRowId(row.nodeId)
+        focusRow(index)
+    }
+
     const handleKeyDown = (
         event: ReactKeyboardEvent<HTMLTableSectionElement>,
     ): void => {
@@ -141,43 +150,44 @@ export function OrgTable({
             return
         }
 
+        const activeIndex =
+            activeRowId === null
+                ? -1
+                : rows.findIndex((row) => row.nodeId === activeRowId)
+
         switch (event.key) {
             case 'ArrowDown': {
                 event.preventDefault()
                 const next =
-                    activeRowIndex < 0
+                    activeIndex < 0
                         ? 0
-                        : Math.min(activeRowIndex + 1, rows.length - 1)
-                setActiveRowIndex(next)
-                focusRow(next)
+                        : Math.min(activeIndex + 1, rows.length - 1)
+                activateRow(next)
                 break
             }
             case 'ArrowUp': {
                 event.preventDefault()
                 const next =
-                    activeRowIndex < 0
+                    activeIndex < 0
                         ? rows.length - 1
-                        : Math.max(activeRowIndex - 1, 0)
-                setActiveRowIndex(next)
-                focusRow(next)
+                        : Math.max(activeIndex - 1, 0)
+                activateRow(next)
                 break
             }
             case 'Home': {
                 event.preventDefault()
-                setActiveRowIndex(0)
-                focusRow(0)
+                activateRow(0)
                 break
             }
             case 'End': {
                 event.preventDefault()
-                setActiveRowIndex(rows.length - 1)
-                focusRow(rows.length - 1)
+                activateRow(rows.length - 1)
                 break
             }
             case 'Enter': {
-                if (activeRowIndex >= 0) {
+                if (activeIndex >= 0) {
                     event.preventDefault()
-                    const row = rows[activeRowIndex]
+                    const row = rows[activeIndex]
                     if (row) {
                         onSelectRow(row.nodeId)
                     }
@@ -235,7 +245,7 @@ export function OrgTable({
                         tabIndex={0}
                         onKeyDown={handleKeyDown}
                     >
-                        {rows.map((row, index) => (
+                        {rows.map((row) => (
                             <TableRow
                                 key={row.nodeId}
                                 ref={
@@ -245,7 +255,8 @@ export function OrgTable({
                                 }
                                 tabIndex={-1}
                                 $selected={row.nodeId === selectedNodeId}
-                                $active={index === activeRowIndex}
+                                $active={row.nodeId === activeRowId}
+                                onFocus={() => setActiveRowId(row.nodeId)}
                                 onClick={() => onSelectRow(row.nodeId)}
                             >
                                 <Td>{row.name}</Td>
