@@ -1,6 +1,6 @@
 # Модель данных
 
-Документ описывает модель, реализованную на `step/1 — FOUNDATION` и `step/2 — CORE`.
+Документ описывает модель, реализованную на `step/1 — FOUNDATION`, `step/2 — CORE` и `step/3 — POLISH`.
 
 ## API-узел
 
@@ -25,7 +25,7 @@ type OrgNode = {
 - `performance` — конечное число от 0 до 100;
 - `updatedAt` — ISO date-time.
 
-`headcount`, `budget` и `performance` принадлежат самому узлу; агрегированные значения считаются отдельно на client.
+`headcount`, `budget` и `performance` принадлежат самому узлу; агрегированные значения считаются отдельно на client. В realtime меняются только `headcount`/`budget`/`performance` и `updatedAt`; `id`/`name`/`parentId` неизменны.
 
 ## Представление иерархии
 
@@ -76,6 +76,20 @@ type OrgTreeIndex = {
 
 Индексы не изменяют исходные API-объекты и не добавляют в них UI-state.
 
+## Snapshot
+
+```ts
+type OrgSnapshot = {
+    nodes: readonly OrgNode[]
+    index: OrgTreeIndex
+    aggregates: ReadonlyMap<string, OrgAggregate>
+}
+
+function createOrgSnapshot(nodes: readonly OrgNode[]): OrgSnapshot
+```
+
+`createOrgSnapshot()` принимает уже валидный `OrgNode[]` (после runtime validation в `fetchOrgTree`) и строит `index` и полные `aggregates` за `O(n)`; повторную Zod-валидацию не выполняет. `OrgSnapshot` — то, что TanStack Query хранит в query cache (`['org-tree']`).
+
 ## Агрегаты
 
 ```ts
@@ -84,6 +98,7 @@ type OrgAggregate = {
     level: number
     totalHeadcount: number
     totalBudget: number
+    weightedPerformanceSum: number
     averagePerformance: number | null
 }
 
@@ -101,6 +116,8 @@ function buildOrgAggregates(
 - `averagePerformance` = weightedPerformanceSum / totalHeadcount;
 - при `totalHeadcount === 0` — `averagePerformance = null` (в UI `—`).
 
+`weightedPerformanceSum` хранится в агрегате, чтобы realtime-патч мог пересчитать агрегаты по delta без полного `O(n)`.
+
 `level` — глубина дерева: 0 = Division, 1 = Department, 2 = Team. Уровень вычисляется из структуры, а не из `id`/`name`.
 
 ## Ancestors
@@ -110,6 +127,52 @@ function getAncestorIds(nodeId: string, index: OrgTreeIndex): readonly string[]
 ```
 
 Проходит вверх через `parentId` и возвращает id предков от ближайшего (родитель) до корня. Для корня и неизвестного `nodeId` возвращает `[]`.
+
+## Realtime event
+
+```ts
+type OrgUpdatedEvent = {
+    type: 'node.updated'
+    node: OrgNode
+}
+
+function parseOrgEvent(payload: unknown): OrgUpdatedEvent
+```
+
+SSE-событие несёт полное новое состояние одного `OrgNode`. `parseOrgEvent()` валидирует payload через Zod (`type: 'node.updated'` + `orgNodeSchema`).
+
+## Realtime patch
+
+```ts
+function applyOrgNodePatch(
+    snapshot: OrgSnapshot,
+    node: OrgNode,
+): OrgSnapshot
+```
+
+- `updatedAt` нового node должен быть строго новее текущего; stale/duplicate patch отбрасывается (возвращается тот же snapshot).
+- Неизвестный `id` и изменение `name`/`parentId` (topology) не применяются.
+- Заменяется один `OrgNode` в `nodes`; `nodesById` обновляется, `childrenByParentId`/`rootIds` переиспользуются.
+- Агрегаты пересчитываются только у изменённого узла и его предков через delta:
+  - `Δheadcount = new.headcount - old.headcount`;
+  - `Δbudget = new.budget - old.budget`;
+  - `ΔweightedPerformanceSum = new.performance * new.headcount - old.performance * old.headcount`.
+- Пересчёт агрегатов — `O(depth)`; полный `buildOrgAggregates()` не вызывается, прочие агрегаты сохраняются по reference. Замена узла в `nodes` (поиск индекса + копия массива) и в `nodesById` — линейные операции по числу узлов.
+
+## Resync merge
+
+```ts
+function mergeOrgNodes(
+    current: readonly OrgNode[],
+    fetched: readonly OrgNode[],
+): readonly OrgNode[]
+```
+
+Используется при resync после reconnect, чтобы полный `GET` не откатывал более новые SSE-обновления:
+
+- проверяет одинаковый набор `id` у `current`/`fetched` и неизменность `name`/`parentId`; при несовпадении бросает ошибку;
+- для каждого `id` берёт более новую версию по `updatedAt`; при одинаковом `updatedAt` предпочитает `current`;
+- результат сохраняет порядок `fetched`; затем `createOrgSnapshot()` перестраивает snapshot.
 
 ## Строка таблицы
 
@@ -160,6 +223,4 @@ function sortOrgTableRows(
 
 ## Состояние раскрытия
 
-`expandedNodeIds` — отдельный `ReadonlySet<string>` на уровне `OrgExplorer`. Начальное значение содержит только `rootIds`: Division раскрыты, Department видны, Team скрыты.
-
-Realtime-патчи, частичный пересчёт агрегатов и контракт обновлений относятся к следующим этапам и здесь не описываются как реализованные.
+`expandedNodeIds` — отдельный `ReadonlySet<string>` на уровне `OrgExplorer`. Начальное значение содержит только `rootIds`: Division раскрыты, Department видны, Team скрыты. Collapsed subtree остаётся смонтированным ради CSS height transition и помечается `inert`/`aria-hidden`.
