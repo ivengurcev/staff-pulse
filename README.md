@@ -2,6 +2,15 @@
 
 Дашборд для мониторинга оргструктуры компании (дивизионы → отделы → команды). Интерактивное дерево и аналитическая таблица с агрегированными показателями, обновляемые в реальном времени по SSE.
 
+### Desktop
+
+![Staff Pulse desktop](docs/screenshots/desktop.png)
+
+### Mobile
+
+![Staff Pulse mobile](docs/screenshots/mobile.png)
+![Staff Pulse mobile](docs/screenshots/mobile-table.png)
+
 ## Стек
 
 - React 19, Vite 8, TypeScript 6;
